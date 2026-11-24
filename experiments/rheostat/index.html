@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<!--
+  ============================================================
+  实验页骨架 · 滑动变阻器
+  ------------------------------------------------------------
+  约定（以后加实验照这个来）：
+  1. 本文件是实验的全部界面，随便画，随便加 JS，不依赖任何框架
+  2. 需要后端数据时调 /api/... 接口（见 web/public/index.php 路由表）
+  3. meta.json 里的字段会显示在教师端课程页，别删
+  4. 目录名 = 访问路径 /exp/<目录名>/
+  ============================================================
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>探究滑动变阻器</title>
+<link rel="stylesheet" href="/assets/app.css?v=0.1.1">
+<style>
+  .lab-grid { display: grid; grid-template-columns: 1fr 1.25fr; gap: 16px; }
+  @media (max-width: 860px) { .lab-grid { grid-template-columns: 1fr; } }
+  .stage {
+    background: #fff; border: 1px dashed var(--line-strong); border-radius: 16px;
+    min-height: 380px; display: grid; place-items: center; padding: 24px; text-align: center;
+  }
+  .stage h3 { margin: 10px 0 4px; font-size: 16px; }
+  .stage .mono { font-size: 12px; color: var(--dim); }
+  .step-list { counter-reset: s; }
+  .step-list li { list-style: none; padding: 12px 0; border-bottom: 1px solid var(--line); display: flex; gap: 12px; }
+  .step-list li:last-child { border-bottom: 0; }
+  .step-list li::before {
+    counter-increment: s; content: counter(s); flex: 0 0 26px; height: 26px;
+    display: grid; place-items: center; border-radius: 50%;
+    background: var(--accent-soft); color: var(--accent); font-size: 12.5px; font-weight: 600;
+  }
+</style>
+</head>
+<body class="theme-student">
+
+<div class="s-top">
+  <div class="flex">
+    <span class="brand-mark" style="color:var(--accent)">◉</span>
+    <div>
+      <div style="font-size:13px;font-weight:600">探究滑动变阻器</div>
+      <div class="who">物理 · 九年级 · 实验页</div>
+    </div>
+  </div>
+  <div class="flex">
+    <a class="btn btn-sm btn-ghost" href="/">← 回到 AI 助教</a>
+  </div>
+</div>
+
+<div class="s-wrap" style="max-width:1080px">
+  <div class="lab-grid">
+    <!-- 左：任务与要点 -->
+    <div class="s-hero">
+      <div class="small dim" style="text-transform:uppercase;letter-spacing:.06em">实验任务</div>
+      <h1>改变电阻，观察电流</h1>
+      <p>滑动变阻器靠改变接入电路的电阻线长度来改变电阻。接线柱选错，滑片移动就完全不起作用。</p>
+
+      <div class="small dim mt24" style="margin-bottom:6px">操作步骤</div>
+      <ol class="step-list" style="margin:0">
+        <li>把滑动变阻器的<b>一个上接线柱</b>和一个<b>下接线柱</b>接入电路（一上一下）</li>
+        <li>开关断开，滑片先移到阻值最大端（远离下方接线柱的一侧）</li>
+        <li>闭合开关，读出电流表数值</li>
+        <li>缓慢移动滑片，观察电流表指针变化，记录 3~5 组数据</li>
+        <li>思考：滑片向哪边移动电流变大？为什么？</li>
+      </ol>
+    </div>
+
+    <!-- 右：实验区（以后在这里挂真实界面） -->
+    <div>
+      <div class="stage">
+        <div>
+          <div style="font-size:34px;line-height:1">⚙</div>
+          <h3>实验区占位</h3>
+          <p class="muted small">这里以后放电路图、滑片拖动、实时读数。<br>直接改本文件即可，不影响其他实验。</p>
+          <div class="mono">experiments/rheostat/index.html</div>
+        </div>
+      </div>
+
+      <div class="card mt16">
+        <div class="card-head"><h2>数据记录</h2><span class="hint">待接入后端</span></div>
+        <table>
+          <thead><tr><th>次数</th><th>滑片位置</th><th>电流 I / A</th><th>电压 U / V</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td class="dim">—</td><td class="dim">—</td><td class="dim">—</td></tr>
+            <tr><td>2</td><td class="dim">—</td><td class="dim">—</td><td class="dim">—</td></tr>
+            <tr><td>3</td><td class="dim">—</td><td class="dim">—</td><td class="dim">—</td></tr>
+          </tbody>
+        </table>
+        <div class="flex mt16">
+          <button class="btn btn-ghost btn-sm" disabled>提交数据（未接后端）</button>
+          <span class="small dim">以后调 /api/exp/rheostat/submit</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/app.js?v=0.1.1"></script>
+</body>
+</html>
+
