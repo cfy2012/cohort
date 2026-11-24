@@ -12,6 +12,7 @@
   window.CohortLab.register({
     id: 'circuit',
     name: '伏安法测电阻',
+    group: '电学',
     grade: '九年级',
     aim: '用电流表和电压表测出定值电阻的阻值，理解滑动变阻器在电路中的作用。',
     formula: 'R = U / I',
@@ -25,12 +26,12 @@
     columns: ['I / A', 'U / V', 'R = U/I / Ω'],
     tableHint: '三组数据取平均',
     tools: [
-      { id: 'battery', icon: 'battery', name: '电池组', hint: '3 V，内阻 0.3 Ω' },
-      { id: 'switch', icon: 'switch', name: '开关', hint: '串联在干路' },
-      { id: 'ammeter', icon: 'ammeter', name: '电流表', hint: '0~0.6 A，串联' },
-      { id: 'voltmeter', icon: 'voltmeter', name: '电压表', hint: '0~3 V，并联在 Rx' },
-      { id: 'resistor', icon: 'resistor', name: '定值电阻', hint: '待测 Rx' },
-      { id: 'rheostat', icon: 'rheostat', name: '滑动变阻器', hint: '0~20 Ω，改变电流' }
+      { id: 'battery', icon: 'battery', name: '电池组', hint: '3 V，内阻 0.3 Ω', group: '电源与开关' },
+      { id: 'switch', icon: 'switch', name: '开关', hint: '串联在干路', group: '电源与开关' },
+      { id: 'ammeter', icon: 'ammeter', name: '电流表', hint: '0~0.6 A，串联', group: '测量仪表' },
+      { id: 'voltmeter', icon: 'voltmeter', name: '电压表', hint: '0~3 V，并联在 Rx', group: '测量仪表' },
+      { id: 'resistor', icon: 'resistor', name: '定值电阻', hint: '待测 Rx', group: '电阻元件' },
+      { id: 'rheostat', icon: 'rheostat', name: '滑动变阻器', hint: '0~20 Ω，改变电流', group: '电阻元件' }
     ],
     ask: ['滑动变阻器为什么能改变电流？', '电压表并联会影响测量结果吗？', '为什么要测三组数据取平均？'],
 

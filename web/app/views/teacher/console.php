@@ -17,7 +17,7 @@ $aiOk = !empty($ai['ok']);
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= e($pageTitle) ?> · <?= e(config()['site_title']) ?></title>
-<link rel="stylesheet" href="/assets/app.css?v=0.5.0">
+<link rel="stylesheet" href="/assets/app.css?v=0.5.1">
 <link rel="stylesheet" href="/assets/paper.css?v=0.4.0">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='78' font-size='72'>◉</text></svg>">
 </head>
@@ -123,7 +123,7 @@ $aiOk = !empty($ai['ok']);
             <div>
               <div class="ttl"><?= e($c['title']) ?></div>
               <div class="sub"><?= e($c['date'] ?? '') ?><?= !empty($c['period']) ? ' · ' . e($c['period']) : '' ?>
-                <?php if (!empty($c['experiment'])): ?> · 实验 <?= e($c['experiment']) ?><?php endif; ?>
+                <?php if ((string)($c['lab'] ?? '') !== ''): ?> · <?= e(lab_binding_label((string)$c['lab'])) ?><?php endif; ?>
               </div>
             </div>
             <?php if ($live && ($S['course_id'] ?? '') === ($c['id'] ?? '')): ?>
@@ -169,7 +169,7 @@ $aiOk = !empty($ai['ok']);
       </div>
     </div>
     <table id="course-table">
-      <thead><tr><th style="width:110px">日期</th><th>课程</th><th style="width:210px">实验</th><th style="width:100px">班级</th><th style="width:170px"></th></tr></thead>
+      <thead><tr><th style="width:110px">日期</th><th>课程</th><th style="width:230px">实验 / 实验室</th><th style="width:100px">班级</th><th style="width:170px"></th></tr></thead>
       <tbody>
       <?php foreach ($courses as $c): ?>
         <tr>
@@ -179,7 +179,11 @@ $aiOk = !empty($ai['ok']);
             <?php if (!empty($c['note'])): ?><div class="small muted"><?= e($c['note']) ?></div><?php endif; ?>
             <?php if ($live && ($S['course_id'] ?? '') === ($c['id'] ?? '')): ?><span class="badge ok"><span class="dot"></span>正在上</span><?php endif; ?>
           </td>
-          <td class="small"><?= !empty($c['experiment']) ? '<span class="mono">' . e($c['experiment']) . '</span>' : '<span class="dim">未绑定（纯答疑）</span>' ?></td>
+          <td class="small">
+            <?php $labRaw = (string)($c['lab'] ?? ''); ?>
+            <div><?= $labRaw !== '' ? e(lab_binding_label($labRaw)) : '<span class="dim">不开放实验室</span>' ?></div>
+            <?php if (!empty($c['experiment'])): ?><div class="mono dim" style="font-size:11px"><?= e($c['experiment']) ?></div><?php endif; ?>
+          </td>
           <td class="small"><?= e($c['class'] ?? '') ?></td>
           <td style="text-align:right;white-space:nowrap">
             <button class="btn btn-sm" data-edit="<?= e($c['id']) ?>">编辑</button>
@@ -273,6 +277,19 @@ $aiOk = !empty($ai['ok']);
 
 <!-- ===================== 实验室后台 ===================== -->
 <section class="c-panel" data-panel="lab">
+  <!-- 自定义实验室放在最前面：它就是"总实验室"，排课时按节次从这里挑 -->
+  <div class="card">
+    <div class="card-head">
+      <h2>自定义实验室</h2>
+      <span class="hint">自己搭的场景都在这里；排课时的「本节实验室」直接从这里挑</span>
+    </div>
+    <div id="lab-labs" class="list"><div class="empty">读取中…</div></div>
+    <div class="form-foot" style="padding-top:0">
+      <button class="btn btn-sm" id="btn-lab-import">导入实验室 JSON</button>
+      <input type="file" id="lab-import-file" accept=".json,application/json" style="display:none">
+      <span class="small muted" id="lab-labs-msg">导出：进通用实验台 → 导出，得到一个 .lab.json 文件</span>
+    </div>
+  </div>
   <div class="card">
     <div class="card-head">
       <h2>实验室页签</h2>
@@ -287,18 +304,6 @@ $aiOk = !empty($ai['ok']);
         <button class="btn btn-primary" id="btn-lab-cfg-save">保存实验室设置</button>
         <span class="small muted" id="lab-cfg-msg"></span>
       </div>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-head">
-      <h2>自定义实验室</h2>
-      <span class="hint">通用台里存下的、或从 JSON 导入的场景，学生端也能直接载入</span>
-    </div>
-    <div id="lab-labs" class="list"><div class="empty">读取中…</div></div>
-    <div class="form-foot" style="padding-top:0">
-      <button class="btn btn-sm" id="btn-lab-import">导入实验室 JSON</button>
-      <input type="file" id="lab-import-file" accept=".json,application/json" style="display:none">
-      <span class="small muted" id="lab-labs-msg">导出：进通用实验台 → 导出，得到一个 .lab.json 文件</span>
     </div>
   </div>
   <div class="card">
@@ -400,7 +405,7 @@ $aiOk = !empty($ai['ok']);
       </div>
       <div class="row-2">
         <label>班级<input id="cm-class" value="<?= e(config()['class_name']) ?>"></label>
-        <label>绑定实验
+        <label>绑定实验页
           <select id="cm-exp">
             <option value="">（不绑定，纯 AI 答疑）</option>
             <?php foreach ($experiments as $x): ?>
@@ -409,6 +414,13 @@ $aiOk = !empty($ai['ok']);
           </select>
         </label>
       </div>
+      <label>本节实验室
+        <select id="cm-lab">
+          <?php foreach (lab_picker_options() as $o): ?>
+            <option value="<?= e($o['value']) ?>"><?= e($o['label']) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </label>
       <label>备注<input id="cm-note" placeholder="只给你自己看"></label>
       <div class="form-foot"><button class="btn btn-primary" id="cm-save">保存</button><span class="small muted" id="cm-msg"></span></div>
     </div>
@@ -463,7 +475,7 @@ window.COHORT_CONSOLE = {
 };
 </script>
 <script src="/assets/app.js?v=0.4.5"></script>
-<script src="/assets/console.js?v=0.5.3"></script>
+<script src="/assets/console.js?v=0.5.5"></script>
 </body>
 </html>
 <?php
@@ -479,4 +491,7 @@ function console_ip_grid_html(array $net): string {
     }
     return $out;
 }
+
+
+
 

@@ -2,6 +2,11 @@
 /** @var array $student @var array $session @var array|null $experiment */
 $pageTitle = '课堂';
 $bodyClass = 'class-live';
+// 这节课的实验室入口：老师在排课时绑了哪个（自由实验台 / 自定义 / 内置模块），就开到哪个
+$labHref  = $lab_href ?? null;
+$labLabel = $lab_label ?? '';
+$labTitle = $labHref ? '本节实验室' : '本节实验';
+if (!$labHref && $experiment) $labHref = '/exp/' . $experiment['slug'];
 ?>
 <div class="s-top">
   <div class="flex">
@@ -19,13 +24,19 @@ $bodyClass = 'class-live';
 
 <div class="s-wrap">
 
-  <?php if ($experiment): ?>
+  <?php if ($labHref): ?>
   <div class="s-hero">
-    <div class="small dim" style="letter-spacing:.06em;text-transform:uppercase">本节实验</div>
-    <h1><?= e($experiment['title']) ?></h1>
-    <p><?= e($experiment['summary'] ?: '按老师要求完成实验，边做边问 AI 助教') ?></p>
+    <div class="small dim" style="letter-spacing:.06em;text-transform:uppercase"><?= e($labTitle) ?></div>
+    <h1><?= $experiment ? e($experiment['title']) : e($labLabel ?: '物理实验室') ?></h1>
+    <p><?php
+      if ($labHref !== null && !empty($lab_bind)) {
+        echo e($labLabel) . ' · 老师已把这一节要用的实验室配好，进去直接做';
+      } else {
+        echo e($experiment['summary'] ?: '按老师要求完成实验，边做边问 AI 助教');
+      }
+    ?></p>
     <div class="flex mt16 wrap">
-      <a class="btn btn-primary" id="btn-exp-open" href="/exp/<?= e($experiment['slug']) ?>" target="_blank" rel="noopener">进实验室</a>
+      <a class="btn btn-primary" id="btn-exp-open" href="<?= e($labHref) ?>" target="_blank" rel="noopener">进实验室</a>
       <?php if (!empty($experiment['equipment'])): ?>
         <span class="small muted">器材：<?= e(implode('、', (array)$experiment['equipment'])) ?></span>
       <?php endif; ?>
@@ -55,7 +66,7 @@ $bodyClass = 'class-live';
   </div>
 </div>
 
-<?php if ($experiment): ?>
+<?php if ($labHref): ?>
 <button class="exp-fab" type="button" id="btn-exp-fab" title="进实验室">实验</button>
 <?php endif; ?>
 
@@ -63,7 +74,7 @@ $bodyClass = 'class-live';
 (function () {
   var fab = document.getElementById('btn-exp-fab');
   if (!fab) return;
-  var href = '/exp/<?= e($experiment['slug']) ?>';
+  var href = <?= json_encode($labHref) ?>;
   fab.addEventListener('click', function () { window.open(href, '_blank'); });
 })();
 </script>

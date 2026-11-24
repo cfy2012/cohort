@@ -169,6 +169,7 @@ function lesson_begin(string $courseId): array {
         'title'      => $course['title'] ?? '',
         'class'      => $course['class'] ?? config()['class_name'],
         'experiment' => $course['experiment'] ?? '',
+        'lab'        => $course['lab'] ?? '',
         'note'       => $course['note'] ?? '',
         'started_at' => now_iso(),
         'ended_at'   => null,

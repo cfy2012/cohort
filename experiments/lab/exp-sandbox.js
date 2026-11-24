@@ -34,15 +34,15 @@
   };
 
   var SHELF = [
-    { id: 'battery',   icon: 'battery',   name: '电池组',     hint: '3 V / 0.3 Ω，点一下换电压', group: '电学' },
+    { id: 'battery',   icon: 'battery',   name: '电池组',     hint: '3V/0.3Ω · 点换电压', group: '电学' },
     { id: 'switch',    icon: 'switch',    name: '开关',       hint: '点一下开合', group: '电学' },
-    { id: 'ammeter',   icon: 'ammeter',   name: '电流表',     hint: '0~0.6 A，串联', group: '电学' },
-    { id: 'voltmeter', icon: 'voltmeter', name: '电压表',     hint: '0~3 V，并联', group: '电学' },
+    { id: 'ammeter',   icon: 'ammeter',   name: '电流表',     hint: '0~0.6 A · 串联', group: '电学' },
+    { id: 'voltmeter', icon: 'voltmeter', name: '电压表',     hint: '0~3 V · 并联', group: '电学' },
     { id: 'resistor',  icon: 'resistor',  name: '定值电阻',   hint: '10 Ω', group: '电学' },
     { id: 'rbox',      icon: 'rbox',      name: '电阻箱',     hint: '点一下换阻值', group: '电学' },
-    { id: 'rheostat',  icon: 'rheostat',  name: '滑动变阻器', hint: '0~20 Ω，拖滑片', group: '电学' },
-    { id: 'bulb',      icon: 'candle',    name: '小灯泡',     hint: '6 Ω，看亮度', group: '电学' },
-    { id: 'wire',      icon: 'wire',      name: '导线',       hint: '0 Ω，接线用', group: '电学' },
+    { id: 'rheostat',  icon: 'rheostat',  name: '滑动变阻器', hint: '0~20 Ω · 拖滑片', group: '电学' },
+    { id: 'bulb',      icon: 'candle',    name: '小灯泡',     hint: '6 Ω · 看亮度', group: '电学' },
+    { id: 'wire',      icon: 'wire',      name: '导线',       hint: '0 Ω · 接线用', group: '电学' },
     { id: 'candle',    icon: 'candle',    name: '蜡烛（物）', hint: '光学物', group: '光学' },
     { id: 'lens',      icon: 'lens',      name: '凸透镜',     hint: 'f = 10 cm', group: '光学' },
     { id: 'lensNeg',   icon: 'lens',      name: '凹透镜',     hint: 'f = −10 cm', group: '光学' },
@@ -133,6 +133,7 @@
   window.CohortLab.register({
     id: 'sandbox',
     name: '通用实验台',
+    group: '综合',
     grade: '八 / 九年级',
     aim: '电学和光学器材混在一张台上，自己摆放、自己接线；也可以载入一份「实验室」JSON，自动摆好。',
     formula: '电学：节点法  ·  光学：1/f = 1/u + 1/v',
@@ -384,7 +385,7 @@
           if (!isFinite(R) || R <= 0) return;
           var I = (volts[it.id] || 0) / R;
           res.currents[it.id] = I;
-          if (it.type === 'ammeter') res.amps = Math.max(res.amps, Math.abs(I));
+          if (it.type !== 'battery' && it.type !== 'voltmeter') res.amps = Math.max(res.amps, Math.abs(I));
           if (it.type === 'voltmeter') res.voltsMax = Math.max(res.voltsMax, Math.abs(volts[it.id]));
           if (it.type === 'bulb') res.power = Math.max(res.power, Math.abs(I * volts[it.id]));
         });
@@ -507,7 +508,7 @@
         g.rect(ctx, it.x + 20, it.y - 13, 22, 26, { color: '#8b8880', w: 1, fill: '#fbf8ef', fillAlpha: .9 });
         g.text(ctx, it.x - 31, it.y + 5, String(Math.floor(R / 10)), { size: 13, color: '#33507d', align: 'center' });
         g.text(ctx, it.x + 31, it.y + 5, String(R % 10), { size: 13, color: '#33507d', align: 'center' });
-        g.text(ctx, it.x, it.y - 5, R + ' Ω', { size: 11, color: '#ad1f26', align: 'center' });
+        g.text(ctx, it.x, it.y + 17, R + ' Ω', { size: 10, color: '#ad1f26', align: 'center' });
         g.line(ctx, it.x - 50, it.y, it.x - 54, it.y, { color: '#3a3830', w: 1.5 });
         g.line(ctx, it.x + 50, it.y, it.x + 54, it.y, { color: '#3a3830', w: 1.5 });
       }
@@ -1028,7 +1029,7 @@
               out.push({ label: '电路', value: '没接成回路', tone: 'warn' });
             } else {
               var amps = sol.amps, vmax = sol.voltsMax;
-              if (el.items.some(function (i) { return i.type === 'ammeter'; })) out.push({ label: '电流 I', value: amps.toFixed(3), unit: 'A' });
+              out.push({ label: '电流 I', value: amps.toFixed(3), unit: 'A' });
               if (el.items.some(function (i) { return i.type === 'voltmeter'; })) out.push({ label: '电压 U', value: vmax.toFixed(2), unit: 'V' });
               if (el.items.some(function (i) { return i.type === 'bulb'; })) out.push({ label: '灯泡功率', value: sol.power.toFixed(2), unit: 'W', tone: sol.power > 0.2 ? 'ok' : '' });
               out.push({ label: '器材', value: String(el.items.length), unit: '件' });
@@ -1108,3 +1109,5 @@
     }
   });
 })();
+
+

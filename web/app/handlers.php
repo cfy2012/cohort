@@ -26,10 +26,16 @@ function web_home(): void {
         return;
     }
     $experiment = $session['experiment'] ? experiment_get($session['experiment']) : null;
+    // 这节课老师绑的是哪个实验室（自由实验台 / 自定义 / 内置模块），没绑就是纯答疑
+    $labBind    = (string)($session['lab'] ?? '');
+    $labHref    = lab_binding_href($labBind);
     render('student/home', [
         'student'    => $student,
         'session'    => $session,
         'experiment' => $experiment,
+        'lab_bind'   => $labBind,
+        'lab_label'  => lab_binding_label($labBind),
+        'lab_href'   => $labHref,
     ]);
 }
 
@@ -600,12 +606,16 @@ function api_admin_course_save(array $args): void {
         'period'     => trim((string)($in['period'] ?? '')),
         'class'      => trim((string)($in['class'] ?? config()['class_name'])),
         'experiment' => trim((string)($in['experiment'] ?? '')),
+        'lab'        => trim((string)($in['lab'] ?? '')),
         'note'       => trim((string)($in['note'] ?? '')),
     ];
     if ($fields['title'] === '') json_out(['ok' => false, 'error' => '课程名字不能空'], 400);
     if ($fields['experiment'] !== '' && !experiment_get($fields['experiment'])) {
         json_out(['ok' => false, 'error' => '实验不存在：' . $fields['experiment'], 'code' => 'BAD_EXP'], 400);
     }
+    // 这节课用哪个实验室：'' 不开放 / sandbox 自由实验台 / custom:<id> / module:<mid>
+    $labErr = lab_binding_error($fields['lab']);
+    if ($labErr !== null) json_out(['ok' => false, 'error' => $labErr, 'code' => 'BAD_LAB'], 400);
 
     $newId = $id !== '' ? $id : 'c' . date('ymdHi') . substr(bin2hex(random_bytes(2)), 0, 3);
     $result = null;
@@ -1247,11 +1257,11 @@ function api_lab_config(array $args): void {
 /** 四个实验模块清单（实验页里的页签），后台用来做开关 */
 function lab_modules(): array {
     return [
-        ['id' => 'lever',    'name' => '杠杆平衡',    'note' => '力矩动力学，可挂 6 只 50g 钩码'],
-        ['id' => 'lens',     'name' => '凸透镜成像',  'note' => '1/f = 1/u + 1/v，光屏可移动'],
-        ['id' => 'circuit',  'name' => '伏安法测电阻','note' => '真实回路 + 电表内阻误差'],
-        ['id' => 'buoyancy', 'name' => '浮力大小',    'note' => '阿基米德原理，水面上涨'],
-        ['id' => 'sandbox',  'name' => '通用实验台',  'note' => '电学 + 光学自由摆放，可载入自定义实验室'],
+        ['id' => 'lever',    'name' => '杠杆平衡',    'note' => '力矩动力学，可挂 6 只 50g 钩码', 'group' => '力学'],
+        ['id' => 'buoyancy', 'name' => '浮力大小',    'note' => '阿基米德原理，水面上涨', 'group' => '力学'],
+        ['id' => 'lens',     'name' => '凸透镜成像',  'note' => '1/f = 1/u + 1/v，光屏可移动', 'group' => '光学'],
+        ['id' => 'circuit',  'name' => '伏安法测电阻','note' => '真实回路 + 电表内阻误差', 'group' => '电学'],
+        ['id' => 'sandbox',  'name' => '通用实验台',  'note' => '电学 + 光学自由摆放，可载入自定义实验室', 'group' => '综合'],
     ];
 }
 
@@ -1280,6 +1290,79 @@ function api_admin_lab_config(array $args): void {
 function labs_all(): array {
     $list = json_read(DATA_DIR . '/labs.json', []);
     return is_array($list) ? $list : [];
+}
+
+/**
+ * 校验一节课绑定的实验室。返回 null 表示合法，否则返回给前端看的错误文案。
+ * 格式约定：''（不开放） | sandbox（自由实验台） | custom:<实验室id> | module:<模块id>
+ */
+function lab_binding_error(string $raw): ?string {
+    if ($raw === '' || $raw === 'sandbox') return null;
+    if (strpos($raw, 'custom:') === 0) {
+        $id = substr($raw, 7);
+        foreach (labs_all() as $l) {
+            if ((string)($l['id'] ?? '') === $id) return null;
+        }
+        return '自定义实验室不存在：' . $id;
+    }
+    if (strpos($raw, 'module:') === 0) {
+        $mid = substr($raw, 7);
+        foreach (lab_modules() as $m) {
+            if ($m['id'] === $mid) return null;
+        }
+        return '内置实验模块不存在：' . $mid;
+    }
+    return '实验室绑定格式不对（应为 sandbox / custom:id / module:id）';
+}
+
+/** 把一节课的实验室绑定翻成学生端能用的打开地址；不开放则返回 null */
+function lab_binding_href(string $raw): ?string {
+    if ($raw === '') return null;
+    if ($raw === 'sandbox') return '/exp/lab?m=sandbox';
+    if (strpos($raw, 'custom:') === 0) {
+        return '/exp/lab?m=sandbox&lab=' . rawurlencode(substr($raw, 7));
+    }
+    if (strpos($raw, 'module:') === 0) {
+        return '/exp/lab?m=' . rawurlencode(substr($raw, 7));
+    }
+    return '/exp/lab';
+}
+
+/** 实验室绑定的人类可读名字，控制台列表里直接显示 */
+function lab_binding_label(string $raw): string {
+    if ($raw === '') return '不开放';
+    if ($raw === 'sandbox') return '自由实验台';
+    if (strpos($raw, 'custom:') === 0) {
+        $id = substr($raw, 7);
+        foreach (labs_all() as $l) {
+            if ((string)($l['id'] ?? '') === $id) return '自定义 · ' . ($l['name'] ?? $id);
+        }
+        return '自定义 · ' . $id . '（已删除）';
+    }
+    if (strpos($raw, 'module:') === 0) {
+        $mid = substr($raw, 7);
+        foreach (lab_modules() as $m) {
+            if ($m['id'] === $mid) return '内置 · ' . $m['name'];
+        }
+        return '内置 · ' . $mid;
+    }
+    return $raw;
+}
+
+/** 控制台排课弹窗要用的实验室清单 */
+function lab_picker_options(): array {
+    $out = [['value' => '', 'label' => '本节不开放实验室（纯 AI 答疑）']];
+    $out[] = ['value' => 'sandbox', 'label' => '自由实验台（学生随便摆）'];
+    foreach (labs_all() as $l) {
+        $out[] = [
+            'value' => 'custom:' . (string)($l['id'] ?? ''),
+            'label' => '自定义 · ' . (string)($l['name'] ?? '未命名') . '（' . count((array)($l['data']['items'] ?? [])) . ' 件器材）',
+        ];
+    }
+    foreach (lab_modules() as $m) {
+        $out[] = ['value' => 'module:' . $m['id'], 'label' => '内置 · ' . $m['name'] . '（' . $m['group'] . '）'];
+    }
+    return $out;
 }
 
 /** 公开：学生端/通用台拉取可用实验室列表（只给元信息 + 场景数据） */

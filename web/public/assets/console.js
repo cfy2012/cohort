@@ -106,6 +106,16 @@
     document.getElementById('cm-period').value = c.period || '';
     document.getElementById('cm-class').value = c.class || '';
     document.getElementById('cm-exp').value = c.experiment || '';
+    var cmLab = document.getElementById('cm-lab');
+    if (cmLab) {
+      // 老课程没有 lab 字段时，按实验页签给个默认：绑了实验就默认开自由台
+      var v = c.lab != null ? c.lab : (c.experiment ? 'sandbox' : '');
+      var has = false;
+      for (var i = 0; i < cmLab.options.length; i++) {
+        if (cmLab.options[i].value === v) { has = true; break; }
+      }
+      cmLab.value = has ? v : '';
+    }
     document.getElementById('cm-note').value = c.note || '';
     document.getElementById('cm-msg').textContent = '';
     modal.hidden = false;
@@ -143,6 +153,7 @@
       period: document.getElementById('cm-period').value.trim(),
       class: document.getElementById('cm-class').value.trim(),
       experiment: document.getElementById('cm-exp').value,
+      lab: document.getElementById('cm-lab') ? document.getElementById('cm-lab').value : '',
       note: document.getElementById('cm-note').value.trim()
     };
     if (!p.title) { document.getElementById('cm-msg').textContent = '课程名称不能空'; return; }
@@ -615,15 +626,21 @@
       var mods = r.modules || [];
       var box = document.getElementById('lab-mod-list');
       if (box) {
-        box.innerHTML = mods.map(function (m) {
+        var html = '', lastG = '';
+        mods.forEach(function (m) {
+          if (m.group && m.group !== lastG) {
+            html += '<div class="mod-group"><span>' + esc(m.group) + '</span><em>' + mods.filter(function (x) { return x.group === m.group; }).length + '</em></div>';
+            lastG = m.group;
+          }
           var on = (labCfg.enabled || []).indexOf(m.id) >= 0;
-          return '<div class="list-item"><div><div class="ttl">' + esc(m.name)
+          html += '<div class="list-item"><div><div class="ttl">' + esc(m.name)
             + ' <span class="small mono dim">' + esc(m.id) + '</span></div><div class="sub">' + esc(m.note || '') + '</div></div>'
             + '<div class="flex" style="gap:14px;align-items:center">'
             + '<label class="small flex" style="gap:6px;align-items:center"><input type="checkbox" data-mod-on="' + esc(m.id) + '"' + (on ? ' checked' : '') + '> 开放</label>'
             + '<label class="small flex" style="gap:6px;align-items:center"><input type="radio" name="lab-def" value="' + esc(m.id) + '"' + (labCfg.default === m.id ? ' checked' : '') + '> 默认</label>'
             + '</div></div>';
-        }).join('') || '<div class="empty">没有实验模块</div>';
+        });
+        box.innerHTML = html || '<div class="empty">没有实验模块</div>';
       }
       var free = document.getElementById('lab-free');
       if (free) free.checked = !!labCfg.free;

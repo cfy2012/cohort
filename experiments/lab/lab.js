@@ -830,6 +830,13 @@
         g.line(ctx, cx - 6, 8, cx + 8, h - 10, { color: c, w: 1.3 });
         g.line(ctx, cx + 8, h - 10, w - 4, 12, { color: c, w: 1.3 });
         break;
+      case 'rbox':
+        g.rect(ctx, 5, 12, w - 10, h - 24, { color: c, w: 1.3, fill: '#efe8d6', fillAlpha: .6 });
+        g.rect(ctx, 10, 18, 12, 16, { color: c, w: 1 });
+        g.rect(ctx, w - 22, 18, 12, 16, { color: c, w: 1 });
+        g.text(ctx, 16, 30, '0', { size: 8, color: c, align: 'center' });
+        g.text(ctx, w - 16, 30, 'Ω', { size: 8, color: '#ad1f26', align: 'center' });
+        break;
       default:
         g.circle(ctx, cx, cy, 9, { color: c, w: 1.3 });
         g.text(ctx, cx, cy + 4, (id || '?').slice(0, 1), { size: 10, color: c, align: 'center' });
@@ -842,7 +849,23 @@
     var exp = App.active, box = $('shelf');
     if (!exp || !box) return;
     box.innerHTML = '';
+    var lastGroup = '';
+    var tools = exp.tools || [];
+    // 只有一组器材的实验也给它一个组头（没有分组字段时兜底），和通用台「电学 9 / 光学 4」同一套视觉
+    if (tools.length && !tools.some(function (t) { return !!t.group; })) {
+      var gh0 = document.createElement('div');
+      gh0.className = 'shelf-group';
+      gh0.innerHTML = '<span>器材</span><em>' + tools.length + '</em>';
+      box.appendChild(gh0);
+    }
     (exp.tools || []).forEach(function (t) {
+      if (t.group && t.group !== lastGroup) {
+        var gh = document.createElement('div');
+        gh.className = 'shelf-group';
+        gh.innerHTML = '<span>' + t.group + '</span><em>' + (exp.tools || []).filter(function (x) { return x.group === t.group; }).length + '</em>';
+        box.appendChild(gh);
+        lastGroup = t.group;
+      }
       var placed = App.inst && App.inst.placed && App.inst.placed.has(t.id);
       if (t.qty && App.inst && App.inst.counts) placed = (App.inst.counts[t.id] || 0) > 0;
       var row = document.createElement('div');
@@ -1012,6 +1035,16 @@
     });
   }
 
+  // 地址栏上的 ?m=<模块id>：这节课老师指定了用哪个实验室
+  function urlModule() {
+    var q = (location.search || '').replace(/^\?/, '').split('&');
+    for (var i = 0; i < q.length; i++) {
+      var kv = q[i].split('=');
+      if (kv[0] === 'm') return decodeURIComponent((kv[1] || '').replace(/\+/g, ' ')).toLowerCase();
+    }
+    return '';
+  }
+
   // 老师后台开放了哪些实验页签（拿不到就全开）
   function loadLabConfig() {
     return fetch('/api/lab/config', { credentials: 'same-origin' })
@@ -1028,14 +1061,28 @@
     resize();
     window.addEventListener('resize', resize);
 
-    // 实验页签：按老师后台的开放清单过滤
+    // 实验页签：按老师后台的开放清单过滤，再按「力学 / 光学 / 电学 / 综合」归组
     var tabs = $('exp-tabs');
+    var FAMILIES = ['力学', '光学', '电学', '综合'];
     function renderTabs(enabled) {
-      var list = enabled && enabled.length ? App.exps.filter(function (e) { return enabled.indexOf(e.id) >= 0; }) : App.exps;
+      var list = enabled && enabled.length ? App.exps.filter(function (e) { return enabled.indexOf(e.id) >= 0; }) : App.exps.slice();
       if (!list.length) list = App.exps.slice(0, 1);
-      tabs.innerHTML = list.map(function (e, i) {
-        return '<button class="exp-tab" type="button" data-exp="' + e.id + '"><span class="no">' + ('0' + (i + 1)).slice(-2) + '</span>' + e.name + '</button>';
-      }).join('');
+      var rank = {};
+      FAMILIES.forEach(function (f, i) { rank[f] = i; });
+      list.sort(function (a, b) { return (rank[a.group] == null ? 99 : rank[a.group]) - (rank[b.group] == null ? 99 : rank[b.group]); });
+      var html = '', last = '', n = 0;
+      // 每组先数一下有几件实验，页签组标签上带一个计数胶囊，和控制台「实验室页签」的分组头对齐
+      var cnt = {};
+      list.forEach(function (e) { var f = e.group || ''; cnt[f] = (cnt[f] || 0) + 1; });
+      list.forEach(function (e) {
+        var fam = e.group || '';
+        if (fam && fam !== last) {
+          html += '<span class="exp-group"><span>' + fam + '</span><em>' + (cnt[fam] || 0) + '</em></span>';
+          last = fam;
+        }
+        html += '<button class="exp-tab" type="button" data-exp="' + e.id + '"><span class="no">' + ('0' + (++n)).slice(-2) + '</span>' + e.name + '</button>';
+      });
+      tabs.innerHTML = html;
       return list;
     }
     tabs.addEventListener('click', function (e) {
@@ -1114,7 +1161,10 @@
     bindCanvas();
     loadLabConfig().then(function (cfg) {
       var list = renderTabs(cfg && cfg.enabled ? cfg.enabled : null);
-      var def = cfg && cfg.default && list.some(function (e) { return e.id === cfg.default; }) ? cfg.default : list[0].id;
+      // 排课时老师选的实验室会带在地址上（?m=lever / ?m=sandbox&lab=xxx），优先打开它
+      var want = urlModule();
+      var def = (want && list.some(function (e) { return e.id === want; })) ? want
+        : (cfg && cfg.default && list.some(function (e) { return e.id === cfg.default; }) ? cfg.default : list[0].id);
       activate(def, true);
       if (cfg && cfg.free === false) {
         toast('老师这次只开放了课堂内使用，自由练习已关闭');

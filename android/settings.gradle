@@ -1,0 +1,21 @@
+// Cohort 手机端（Android）
+// 说明：这是「客户端」，服务端仍然是老师这台 Windows 上的 PHP + Caddy。
+// 学生端：直接打开课堂页（不用 Edge / 不用浏览器地址栏）。
+// 教师端：手机上看控制台，方便走动时控场、看报表。
+rootProject.name = 'CohortMobile'
+
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+include ':app'

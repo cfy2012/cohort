@@ -19,6 +19,7 @@
   window.CohortLab.register({
     id: 'lens',
     name: '凸透镜成像',
+    group: '光学',
     grade: '八年级上',
     aim: '改变蜡烛到凸透镜的距离，找出 u>2f、f<u<2f、u<f 三种情况的成像规律。',
     formula: '1/f = 1/u + 1/v',

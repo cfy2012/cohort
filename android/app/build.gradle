@@ -1,0 +1,46 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'org.cohort.mobile'
+    compileSdk 34
+
+    defaultConfig {
+        minSdk 23
+        targetSdk 34
+        versionCode 1
+        versionName '1.0.0'
+    }
+
+    // 一个工程出两个包：教师端 / 学生端
+    flavorDimensions 'role'
+    productFlavors {
+        teacher {
+            dimension 'role'
+            applicationId 'org.cohort.teacher'
+            resValue 'string', 'app_name', 'Cohort 讲台'
+            buildConfigField 'boolean', 'IS_STUDENT', 'false'
+        }
+        student {
+            dimension 'role'
+            applicationId 'org.cohort.student'
+            resValue 'string', 'app_name', 'Cohort 学生端'
+            buildConfigField 'boolean', 'IS_STUDENT', 'true'
+        }
+    }
+
+    buildFeatures { buildConfig true }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    // 两个 flavor 的 APK 文件名带上角色，方便分发
+    applicationVariants.all { v ->
+        v.outputs.all {
+            outputFileName = "Cohort-${v.flavorName}-${v.versionName}.apk"
+        }
+    }
+}

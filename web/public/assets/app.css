@@ -463,3 +463,16 @@ input[type=checkbox], input[type=radio] { accent-color: #201f19; }
   white-space: pre-wrap; word-break: break-all;
 }
 
+
+/* 实验室模块分组标题（教师控制台） */
+.mod-group {
+  display: flex; align-items: center; gap: 8px;
+  margin: 12px 2px 0; padding-bottom: 6px;
+  border-bottom: 1px dashed var(--line);
+  font-size: 11px; letter-spacing: .1em; color: var(--muted);
+}
+.mod-group:first-child { margin-top: 0; }
+.mod-group em {
+  font-style: normal; margin-left: auto; font-size: 10px;
+  border: 1px solid var(--line); border-radius: 999px; padding: 0 6px; color: var(--dim);
+}
