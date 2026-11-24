@@ -1,3 +1,4 @@
 plugins {
-    id 'com.android.application' version '8.1.4' apply false
+    // 8.7 跟 Gradle 8.9~8.11 这档配得上，runner 上也好装
+    id 'com.android.application' version '8.7.3' apply false
 }

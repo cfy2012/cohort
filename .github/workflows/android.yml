@@ -1,5 +1,6 @@
 # Cohort 安卓端：推代码就自动出两个 APK（教师端 + 学生端）
-# 不用在本地装 Android SDK —— GitHub 的机器上自带 JDK 17 和 Android SDK。
+# 不用在本地装 Android SDK —— runner 上自带 JDK 和 Android SDK。
+# Gradle 版本在这里钉死成 8.11.1：runner 自带的 9.x 跟 AGP 8.7 配不上。
 name: android
 
 on:
@@ -20,6 +21,11 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+
+      - name: 装 Gradle 8.11.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
 
       - name: 编译两个 APK
         working-directory: android
