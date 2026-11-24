@@ -98,6 +98,7 @@ $routes = [
     ['GET',  '#^/api/ping$#',              'api_ping'],
     ['GET',  '#^/api/status$#',            'api_status'],
     ['GET',  '#^/api/ai/models$#',         'api_ai_models'],
+    ['POST', '#^/api/asr$#',               'api_asr'],
 ];
 
 foreach ($routes as [$m, $re, $fn]) {

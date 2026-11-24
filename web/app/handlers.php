@@ -1472,3 +1472,124 @@ function api_ai_models(array $args): void {
 }
 
 
+
+
+// ============================================================ 语音输入（本地 ASR）
+
+/** whisper-cli 在哪（runtime/asr 里有就用，没有再退 CohortAsr.exe） */
+function asr_whisper_bin(): ?string {
+    foreach (['whisper-cli.exe', 'main.exe'] as $n) {
+        $direct = COHORT_ROOT . '/runtime/asr/' . $n;
+        if (is_file($direct)) return $direct;
+        $hit = glob(COHORT_ROOT . '/runtime/asr/**/' . $n);
+        if ($hit) return $hit[0];
+    }
+    return null;
+}
+
+/** 挑模型：优先 base（准一些），其次 tiny（快） */
+function asr_whisper_model(): ?string {
+    foreach (['ggml-base-q5_1.bin', 'ggml-base.bin', 'ggml-tiny-q5_1.bin', 'ggml-tiny.bin'] as $n) {
+        $p = COHORT_ROOT . '/runtime/asr/' . $n;
+        if (is_file($p)) return $p;
+    }
+    $any = glob(COHORT_ROOT . '/runtime/asr/*.bin');
+    return $any ? $any[0] : null;
+}
+
+/** 跑一条命令，超时就掐掉；返回 [退出码, 标准输出, 标准错误] */
+function run_cmd(string $cmd, int $timeoutSec = 90): array {
+    $desc = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
+    $p = @proc_open($cmd, $desc, $pipes);
+    if (!is_resource($p)) return [-1, '', 'proc_open 失败'];
+    stream_set_blocking($pipes[1], false);
+    stream_set_blocking($pipes[2], false);
+    $out = '';
+    $err = '';
+    $t0 = time();
+    while (true) {
+        $st = proc_get_status($p);
+        $out .= (string)stream_get_contents($pipes[1]);
+        $err .= (string)stream_get_contents($pipes[2]);
+        if (!$st['running']) break;
+        if (time() - $t0 > $timeoutSec) {
+            @proc_terminate($p, 9);
+            $err .= ' (超时)';
+            break;
+        }
+        usleep(120000);
+    }
+    $out .= (string)stream_get_contents($pipes[1]);
+    $err .= (string)stream_get_contents($pipes[2]);
+    fclose($pipes[1]);
+    fclose($pipes[2]);
+    $code = proc_close($p);
+    return [$code, $out, $err];
+}
+
+/**
+ * POST /api/asr   （multipart，字段 audio=16k 单声道 wav）
+ * 学生端、实验页、控制台都用这一个口。不登录也能用，但只认短的 wav。
+ */
+function api_asr(array $args): void {
+    $f = $_FILES['audio'] ?? null;
+    if (!$f || (int)($f['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+        json_out(['ok' => false, 'error' => '没收到录音'], 400);
+    }
+    if ((int)$f['size'] > 12 * 1024 * 1024) {
+        json_out(['ok' => false, 'error' => '一段别超过 60 秒'], 413);
+    }
+    $dir = COHORT_ROOT . '/runtime/tasks/asr';
+    if (!is_dir($dir)) @mkdir($dir, 0777, true);
+    $stamp = date('Hi') . '-' . bin2hex(random_bytes(4));
+    $wav = $dir . '/a' . $stamp . '.wav';
+    if (!move_uploaded_file($f['tmp_name'], $wav)) {
+        json_out(['ok' => false, 'error' => '录音没存下来'], 500);
+    }
+
+    $head = (string)@file_get_contents($wav, false, null, 0, 12);
+    if (strncmp($head, 'RIFF', 4) !== 0) {
+        @unlink($wav);
+        json_out(['ok' => false, 'error' => '只认 wav 录音'], 400);
+    }
+
+    $text = '';
+    $engine = 'sapi';
+    $bin = asr_whisper_bin();
+    $model = asr_whisper_model();
+
+    if ($bin !== null && $model !== null) {
+        $engine = 'whisper';
+        $base = $dir . '/a' . $stamp;
+        $cmd = escapeshellarg($bin)
+             . ' -m ' . escapeshellarg($model)
+             . ' -f ' . escapeshellarg($wav)
+             . ' -l zh -t 4 -nt -otxt -of ' . escapeshellarg($base)
+             . ' 2>&1';
+        run_cmd($cmd, 120);
+        $txtFile = $base . '.txt';
+        if (is_file($txtFile)) $text = (string)file_get_contents($txtFile);
+        @unlink($txtFile);
+    }
+
+    if (trim($text) === '' && is_file(COHORT_ROOT . '/runtime/asr/CohortAsr.exe')) {
+        $engine = 'sapi';
+        $outFile = $dir . '/a' . $stamp . '.txt';
+        $cmd = escapeshellarg(COHORT_ROOT . '/runtime/asr/CohortAsr.exe')
+             . ' ' . escapeshellarg($wav) . ' ' . escapeshellarg($outFile) . ' 2>&1';
+        run_cmd($cmd, 60);
+        if (is_file($outFile)) $text = (string)file_get_contents($outFile);
+        @unlink($outFile);
+    }
+
+    // 清理音频，别把磁盘塞满；只留最近 200 个
+    $keep = glob($dir . '/*.wav');
+    if ($keep && count($keep) > 200) {
+        usort($keep, fn($a, $b) => filemtime($a) <=> filemtime($b));
+        foreach (array_slice($keep, 0, count($keep) - 200) as $old) @unlink($old);
+    }
+    @unlink($wav);
+
+    $text = trim(preg_replace('/\s+/u', ' ', (string)$text));
+    json_out(['ok' => true, 'text' => $text, 'engine' => $engine]);
+}
