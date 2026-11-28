@@ -13,6 +13,7 @@
 <body class="theme-student <?= e($bodyClass ?? '') ?>">
 <?= $content ?>
 <script src="/assets/app.js?v=0.4.4"></script>
+<script src="/assets/voice.js?v=0.1.0"></script>
 </body>
 </html>
 

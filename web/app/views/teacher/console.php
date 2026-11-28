@@ -476,6 +476,7 @@ window.COHORT_CONSOLE = {
 </script>
 <script src="/assets/app.js?v=0.4.5"></script>
 <script src="/assets/console.js?v=0.5.5"></script>
+<script src="/assets/voice.js?v=0.1.0"></script>
 </body>
 </html>
 <?php
@@ -491,6 +492,7 @@ function console_ip_grid_html(array $net): string {
     }
     return $out;
 }
+
 
 
 

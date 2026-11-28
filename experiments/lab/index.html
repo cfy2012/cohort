@@ -116,7 +116,7 @@
         <div class="data-title hand">数据记录<span class="dim" id="data-hint"></span></div>
         <div id="data-table"></div>
       </div>
-      <textarea id="note-edit" class="note-edit" rows="4" placeholder="随手写点：现象、疑问、结论……（自动保存）"></textarea>
+      <textarea id="note-edit" data-voice class="note-edit" rows="4" placeholder="随手写点：现象、疑问、结论……（自动保存）"></textarea>
       <div class="note-foot">
         <button class="btn sm" type="button" id="btn-save" disabled>提交给老师（0/3）</button>
         <span class="hand dim" id="save-state">还可记 3 条再来提交</span>
@@ -127,7 +127,7 @@
       <div class="chat-log" id="chat-log"></div>
       <div class="chips" id="chat-chips"></div>
       <form class="chat-form" id="chat-form">
-        <textarea id="chat-text" rows="1" placeholder="问实验里的问题……"></textarea>
+        <textarea id="chat-text" data-voice rows="1" placeholder="问实验里的问题……"></textarea>
         <button type="submit" class="btn send">发</button>
       </form>
       <div class="chat-foot hand" id="chat-foot">AI 会读取你实验台的当前读数</div>
@@ -136,6 +136,7 @@
 </main>
 
 <script src="lab.js?v=0.5.4"></script>
+<script src="/assets/voice.js?v=0.1.0"></script>
 <script src="exp-lever.js"></script>
 <script src="exp-lens.js"></script>
 <script src="exp-circuit.js"></script>
@@ -143,6 +144,8 @@
 <script src="exp-sandbox.js"></script>
 </body>
 </html>
+
+
 
 
 

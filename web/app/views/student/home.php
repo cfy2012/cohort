@@ -54,7 +54,7 @@ if (!$labHref && $experiment) $labHref = '/exp/' . $experiment['slug'];
         <button type="button" class="q-clear">取消</button>
       </div>
       <form class="chat-input" id="chat-form">
-        <textarea id="chat-text" placeholder="问点什么……（Enter 发送，Shift+Enter 换行）" rows="1"></textarea>
+        <textarea id="chat-text" data-voice placeholder="问点什么……（Enter 发送，Shift+Enter 换行）" rows="1"></textarea>
         <button class="btn btn-primary" type="submit">发送</button>
       </form>
     </div>
