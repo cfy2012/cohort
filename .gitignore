@@ -1,0 +1,28 @@
+# 运行时与数据，不进源码仓库
+data/
+runtime/
+*.log
+
+# 安装包产物
+Cohort-安装包.exe
+CohortStudent-安装包.exe
+Cohort.exe
+CohortStudent.exe
+pack/*.zip
+pack/student/
+pack/teacher/
+dist/*.exe
+dist/*.apk
+dist/*.zip
+
+# 安卓构建产物（APK 由 GitHub Actions 出，不提交）
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+*.apk
+
+# 本地临时
+*.tmp
+.DS_Store
+Thumbs.db

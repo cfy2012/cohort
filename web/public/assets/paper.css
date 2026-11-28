@@ -1,0 +1,198 @@
+/* ============================================================
+   Cohort · 手绘纸片主题（覆盖层）
+   白纸底 + 墨线 + 手绘圆角，无阴影无渐变
+   在 app.css 之后加载，靠同/更高优先级覆盖原有深色与蓝色调
+   ============================================================ */
+
+:root {
+  --paper: #fcfbf6;
+  --paper-2: #f4f2ea;
+  --ink: #16150f;
+  --ink-soft: #4b4a41;
+  --ink-dim: #8b8880;
+  --hair: #d6d2c6;
+  --hair-strong: #201f19;
+  --red: #ad1f26;
+  --sketch-r: 18px 26px 16px 28px / 26px 16px 28px 18px;
+  --sketch-r-sm: 12px 18px 12px 20px / 18px 12px 20px 12px;
+}
+
+body.theme-teacher,
+body.theme-student {
+  --bg: var(--paper);
+  --bg-soft: var(--paper-2);
+  --panel: #fdfcf8;
+  --panel-2: #f5f3ec;
+  --line: var(--hair);
+  --line-strong: var(--hair-strong);
+  --text: var(--ink);
+  --muted: var(--ink-soft);
+  --dim: var(--ink-dim);
+  --accent: var(--red);
+  --accent-soft: rgba(173, 31, 38, .06);
+  --ok: #2f6b45;
+  --warn: #8f6412;
+  --bad: #ad1f26;
+  --radius: 18px;
+  --radius-sm: 14px;
+  --font: "Source Han Serif SC", "Noto Serif SC", "Songti SC", "STSong", "SimSun", Georgia, serif;
+  --mono: "Cascadia Mono", Consolas, "Courier New", monospace;
+
+  background-color: var(--paper);
+  background-image: radial-gradient(circle at 1px 1px, rgba(22, 21, 15, .055) 1px, transparent 0);
+  background-size: 26px 26px;
+  color: var(--text);
+  -webkit-font-smoothing: auto;
+}
+
+/* ---------- 骨架：去掉深色块，改白纸 ---------- */
+body.theme-teacher:not(.console-body) { display: flex; min-height: 100vh; }
+.sidebar {
+  background: transparent;
+  border-right: 1px solid var(--hair);
+}
+.nav a { color: var(--ink-soft); border-radius: 999px; }
+.nav a:hover { background: rgba(22, 21, 15, .05); color: var(--ink); }
+.nav a.active { background: rgba(22, 21, 15, .09); color: var(--ink); font-weight: 600; }
+
+.c-head {
+  background: rgba(252, 251, 246, .92);
+  border-bottom: 1px solid var(--hair);
+  backdrop-filter: blur(6px);
+}
+.c-tabs { background: transparent; border-bottom: 1px solid var(--hair); }
+.c-tab { border-radius: 999px; color: var(--ink-soft); }
+.c-tab:hover { background: rgba(22, 21, 15, .05); color: var(--ink); }
+.c-tab.is-on { color: var(--ink); border-bottom-color: transparent; background: rgba(22, 21, 15, .1); font-weight: 600; }
+.c-addr { border-radius: 999px; background: #fff; }
+
+.s-top {
+  background: rgba(252, 251, 246, .94);
+  border-bottom: 1px solid var(--hair);
+  backdrop-filter: blur(6px);
+}
+
+/* ---------- 卡片：墨线手绘框，去阴影 ---------- */
+.card, .stat, .chat-box, .s-hero, .step, .list-item, .modal-box,
+.s-nav a, .ip-cell, .log-box, .exp-placeholder {
+  background: var(--panel);
+  border: 1.5px solid var(--hair-strong);
+  border-radius: var(--sketch-r);
+  box-shadow: none;
+}
+.stat, .ip-cell, .step, .list-item { border-width: 1px; }
+.log-box { border-radius: var(--sketch-r-sm); background: #fbfaf5; }
+
+/* ---------- 按钮：白底墨框、胶囊手绘 ---------- */
+.btn {
+  background: #fffdf8;
+  border: 1.5px solid var(--hair-strong);
+  border-radius: 999px;
+  color: var(--ink);
+  font-size: 14px;
+  padding: 9px 18px;
+  box-shadow: none;
+  transition: transform .12s ease, background .15s;
+}
+.btn:hover { border-color: var(--hair-strong); background: #f2efe4; transform: translateY(-1px) rotate(-.4deg); }
+.btn:active { transform: translateY(1px); }
+.btn-primary {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fbfaf5;
+  font-weight: 600;
+}
+.btn-primary:hover { background: #2a2924; color: #fff; }
+.btn-ghost { background: transparent; border-color: var(--hair); }
+.btn-danger { color: var(--red); border-color: var(--red); }
+.btn-sm { font-size: 12.5px; padding: 5px 12px; }
+
+/* ---------- 表单控件 ---------- */
+input[type=text], input[type=password], input[type=number], textarea, select {
+  background: #fff;
+  border: 1px solid var(--hair);
+  border-radius: var(--sketch-r-sm);
+  color: var(--ink);
+  box-shadow: none;
+}
+input:focus, textarea:focus, select:focus {
+  border-color: var(--hair-strong);
+  background: #fff;
+  outline: 2px solid rgba(22, 21, 15, .08);
+}
+
+/* ---------- 徽标：手写小标签 ---------- */
+.badge {
+  border-radius: 999px;
+  border: 1px solid var(--hair);
+  background: #fff;
+  color: var(--ink-soft);
+  font-size: 11.5px;
+  padding: 2px 9px;
+}
+.badge.ok { color: #2f6b45; border-color: #a9c3b2; background: #f2f7f3; }
+.badge.warn { color: #8f6412; border-color: #dcc79c; background: #faf5e8; }
+.badge.bad { color: var(--red); border-color: #dfb3b0; background: #fbf1f0; }
+
+/* ---------- 表格：只有横线，不要底色 ---------- */
+table { font-size: 14px; }
+th { color: var(--ink-dim); text-transform: none; letter-spacing: .02em; font-weight: 600; }
+th, td { border-bottom: 1px solid var(--hair); padding: 11px 12px; }
+
+/* ---------- 学生端：顶部、气泡、输入 ---------- */
+.msg { border-radius: var(--sketch-r-sm); font-size: 15px; }
+.msg.user {
+  background: var(--ink);
+  color: #fbfaf5;
+  border: 0;
+  border-radius: 20px 20px 6px 20px;
+}
+.msg.ai {
+  background: #fffef9;
+  border: 1px solid var(--hair-strong);
+  border-radius: 6px 20px 20px 20px;
+  color: var(--ink);
+}
+.msg.sys { color: var(--ink-dim); }
+.msg-body blockquote {
+  border-left: 3px solid var(--hair-strong);
+  background: #f6f4ec;
+  color: var(--ink-soft);
+}
+.msg-body code { background: #efece1; color: #2a2924; }
+.msg-body pre { background: #f3f1e7; border: 1px solid var(--hair); }
+
+.chat-input { background: transparent; border-top: 1px solid var(--hair); }
+.chat-input textarea { border-radius: var(--sketch-r-sm); }
+
+.s-nav a { color: var(--ink); }
+.s-nav a:hover { background: #f6f4ec; }
+
+/* ---------- 浮钮：手绘小圆牌，挪到输入框上方，别和发送键挤在一起 ---------- */
+.exp-fab {
+  background: #fffdf8;
+  color: var(--ink);
+  border: 1.5px solid var(--hair-strong);
+  border-radius: 999px;
+  box-shadow: none;
+  font-family: inherit;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  right: 20px;
+  bottom: 118px;
+  font-size: 13px;
+  letter-spacing: .04em;
+}
+.exp-fab:hover { background: var(--ink); color: #fbfaf5; }
+
+/* ---------- 弹窗 ---------- */
+.modal { background: rgba(22, 21, 15, .32); backdrop-filter: blur(2px); }
+
+/* ---------- 顶栏标题的排版节奏 ---------- */
+.card-head h2, .page-head h1 { letter-spacing: -.3px; font-weight: 650; }
+.eyebrow { letter-spacing: .1em; }
+
+/* 行内链接：参考站点的红色下划线链接 */
+a { color: var(--red); }
+a:hover { text-decoration: underline; }

@@ -1,0 +1,36 @@
+# 顺手编一个 whisper-cli.exe（本地语音识别用）
+# 只在手动/需要时跑；产物是 artifact，下载后放进 runtime/asr/
+#
+# 关键：GGML_NATIVE=OFF。不开的话 CMake 会按 runner 的 CPU（带 AVX512）编译，
+# 拿到没有 AVX512 的普通机器上会直接 STATUS_ILLEGAL_INSTRUCTION 崩掉。
+name: whisper
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: 拉 whisper.cpp
+        run: git clone --depth 1 https://github.com/ggml-org/whisper.cpp.git ${{ runner.temp }}\wsp
+
+      - name: 编译（通用 x64，不做 native 优化）
+        working-directory: ${{ runner.temp }}\wsp
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DGGML_NATIVE=OFF -DGGML_AVX=ON -DGGML_AVX2=ON -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=ON
+          cmake --build build --config Release -j 4
+
+      - name: 收产物
+        run: |
+          New-Item -ItemType Directory -Force -Path out | Out-Null
+          Get-ChildItem -Path "${{ runner.temp }}\wsp\build\bin\Release" -Filter whisper-cli.exe | Copy-Item -Destination out
+          Get-ChildItem -Path "${{ runner.temp }}\wsp\build\bin\Release" -Filter *.dll | Copy-Item -Destination out
+          Get-ChildItem out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: whisper-win
+          path: out/*
+          if-no-files-found: error
+          retention-days: 30

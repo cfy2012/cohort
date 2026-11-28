@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<!--
+  ============================================================
+  草纸物理实验室 · 实验页
+  ------------------------------------------------------------
+  左：器材架（点一下或拖到实验台）
+  中：实验台（Canvas，手绘草纸风，逐帧物理推演）
+  右：实验笔记 ⇄ AI 助教（笔记先存本机，登录课堂后再同步；AI 走 /api/lab/chat）
+  接口说明见同目录 README.md
+  ============================================================
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>草纸物理实验室</title>
+<script>
+/* 这个页面可能被 /exp/lab、/exp/lab/、/exp/lab/index.html 三种路径打开，
+   补一个 base，下面的 lab.css / lab.js 才不会 404（之前就是这里挂了） */
+(function () {
+  var m = location.pathname.match(/\/exp\/([a-z0-9\-]+)/i);
+  var b = document.createElement('base');
+  b.href = m ? '/exp/' + m[1] + '/' : location.pathname.replace(/[^\/]*$/, '');
+  document.head.appendChild(b);
+})();
+</script>
+<link rel="stylesheet" href="lab.css?v=0.5.7">
+</head>
+<body class="lab-body">
+
+<div class="lab-top">
+  <div class="lab-title">
+    <span class="pin" aria-hidden="true"></span>
+    <b>草纸物理实验室</b>
+    <em>physics scratch lab</em>
+  </div>
+  <div class="lab-meta">
+    <span class="dot" id="ai-dot" title="AI 连接状态"></span>
+    <span id="lab-save" class="hand">未保存</span>
+    <span class="sep">/</span>
+    <span class="hand" id="lesson-tag">九年级 · 物理</span>
+  </div>
+</div>
+
+<main class="lab-shell">
+
+  <!-- ======================= 左：器材架 ======================= -->
+  <aside class="shelf">
+    <div class="shelf-head">
+      <h3>器材架</h3>
+      <span class="hand dim">拖到台上 →</span>
+    </div>
+    <div class="shelf-list" id="shelf"></div>
+    <div class="shelf-foot hand">点一下也能放上台 · 再点一下收回</div>
+  </aside>
+
+  <!-- ======================= 中：实验台 ======================= -->
+  <section class="bench">
+    <div class="exp-tabs" id="exp-tabs"></div>
+
+    <div class="brief" id="brief">
+      <div class="brief-main">
+        <h2 id="brief-title">—</h2>
+        <p id="brief-aim">—</p>
+      </div>
+      <div class="brief-side">
+        <div class="formula" id="brief-formula">—</div>
+        <button class="link" type="button" id="brief-steps-btn">实验步骤</button>
+      </div>
+      <div class="steps" id="brief-steps" hidden></div>
+    </div>
+
+    <div class="stage" id="stage-wrap">
+      <canvas id="pad"></canvas>
+      <div class="hud" id="hud"></div>
+      <div class="stamp" id="stamp"></div>
+      <div class="tip" id="tip"></div>
+      <div class="drop-hint" id="drop-hint">松手，放在这里</div>
+    </div>
+
+    <div class="bench-bar">
+      <button class="btn" type="button" id="btn-pause">暂停</button>
+      <button class="btn" type="button" id="btn-reset">复位</button>
+      <button class="btn" type="button" id="btn-record">记录读数</button>
+      <span class="bar-sep"></span>
+      <label class="speed">速度
+        <select id="speed">
+          <option value="0.5">0.5×</option>
+          <option value="1" selected>1×</option>
+          <option value="2">2×</option>
+        </select>
+      </label>
+      <button class="btn ghost" type="button" id="btn-grid">草稿格</button>
+      <button class="btn ghost" type="button" id="btn-full">全屏</button>
+      <span class="bar-hint hand" id="bar-hint"></span>
+    </div>
+  </section>
+
+  <!-- ======================= 右：笔记 / AI ======================= -->
+  <aside class="side">
+    <div class="side-tabs">
+      <button type="button" class="active" data-tab="note">记录表</button>
+      <button type="button" data-tab="ai">AI 助教</button>
+    </div>
+
+    <div class="pane pane-note" id="pane-note">
+      <div class="note-head">
+        <span class="hand dim" id="note-count">0 条</span>
+        <div class="note-head-btns">
+          <button class="link" type="button" id="btn-ask-data">让 AI 看数据</button>
+          <button class="link" type="button" id="btn-clear">清空</button>
+        </div>
+      </div>
+      <div class="note-log" id="note-log"></div>
+      <div class="data-wrap">
+        <div class="data-title hand">数据记录<span class="dim" id="data-hint"></span></div>
+        <div id="data-table"></div>
+      </div>
+      <textarea id="note-edit" data-voice class="note-edit" rows="4" placeholder="随手写点：现象、疑问、结论……（自动保存）"></textarea>
+      <div class="note-foot">
+        <button class="btn sm" type="button" id="btn-save" disabled>提交给老师（0/3）</button>
+        <span class="hand dim" id="save-state">还可记 3 条再来提交</span>
+      </div>
+    </div>
+
+    <div class="pane pane-ai hidden" id="pane-ai">
+      <div class="chat-log" id="chat-log"></div>
+      <div class="chips" id="chat-chips"></div>
+      <form class="chat-form" id="chat-form">
+        <textarea id="chat-text" data-voice rows="1" placeholder="问实验里的问题……"></textarea>
+        <button type="submit" class="btn send">发</button>
+      </form>
+      <div class="chat-foot hand" id="chat-foot">AI 会读取你实验台的当前读数</div>
+    </div>
+  </aside>
+</main>
+
+<script src="lab.js?v=0.5.7"></script>
+<script src="/assets/voice.js?v=0.1.1"></script>
+<script src="exp-lever.js"></script>
+<script src="exp-lens.js"></script>
+<script src="exp-circuit.js"></script>
+<script src="exp-buoyancy.js"></script>
+<script src="exp-states.js"></script>
+<script src="exp-sandbox.js"></script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
