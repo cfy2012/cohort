@@ -9,8 +9,8 @@ android {
     defaultConfig {
         minSdk 23
         targetSdk 34
-        versionCode 1
-        versionName '1.0.0'
+        versionCode 3
+        versionName '1.0.3'
     }
 
     // 一个工程出两个包：教师端 / 学生端
@@ -44,3 +44,4 @@ android {
         }
     }
 }
+
