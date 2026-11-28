@@ -144,11 +144,18 @@ def push_tree(owner, repo, root, includes, message, branch='main'):
         tree.append({'path': rel(root, fp), 'mode': '100644', 'type': 'blob', 'sha': r['sha']})
         if i % 50 == 0:
             print('  blob %d/%d' % (i, len(files)))
-    st, r = call('POST', '/repos/%s/%s/git/trees' % (owner, repo), {'tree': tree})
+    st, ref = call('GET', '/repos/%s/%s/git/ref/heads/%s' % (owner, repo, branch))
+    parent = ref['object']['sha'] if st == 200 else None
+    tree_payload = {'tree': tree}
+    if parent:
+        # 带上 base_tree：只覆盖这次上传的文件，其他目录保持原样
+        st2, base = call('GET', '/repos/%s/%s/git/commits/%s' % (owner, repo, parent))
+        if st2 == 200 and base.get('tree', {}).get('sha'):
+            tree_payload['base_tree'] = base['tree']['sha']
+    st, r = call('POST', '/repos/%s/%s/git/trees' % (owner, repo), tree_payload)
     if st not in (200, 201):
         sys.exit('tree 失败：%s %s' % (st, r))
-    st, ref = call('GET', '/repos/%s/%s/git/ref/heads/%s' % (owner, repo, branch))
-    parents = [ref['object']['sha']] if st == 200 else []
+    parents = [parent] if parent else []
     st, r = call('POST', '/repos/%s/%s/git/commits' % (owner, repo),
                  {'message': message, 'tree': r['sha'], 'parents': parents})
     if st not in (200, 201):
