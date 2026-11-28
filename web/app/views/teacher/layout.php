@@ -38,7 +38,9 @@
 </main>
 
 <script src="/assets/app.js?v=0.4.4"></script>
+<script src="/assets/voice.js?v=0.1.1"></script>
 </body>
 </html>
+
 
 

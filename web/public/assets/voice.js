@@ -12,7 +12,7 @@
     var s = document.createElement('style');
     s.id = 'cv-voice-style';
     s.textContent = [
-      '.cv-voice-wrap{position:relative;display:block;flex:1 1 auto;min-width:0}',
+      '.cv-voice-wrap{position:relative;display:flex;flex:1 1 auto;min-width:0;align-items:stretch}',
       '.cv-voice-wrap>.cv-mic{position:absolute;right:6px;top:5px;z-index:3;',
       'font:11.5px/1.5 inherit;letter-spacing:.02em;padding:3px 7px;border-radius:3px;',
       'border:1px solid #d9d5c6;background:#fff;color:#4b4a41;cursor:pointer;',
@@ -22,7 +22,8 @@
       '.cv-voice-wrap>.cv-mic.rec::before{content:"";display:inline-block;width:6px;height:6px;',
       'border-radius:50%;background:#ad1f26;margin-right:5px;vertical-align:1px}',
       '.cv-voice-wrap>.cv-mic.wait{opacity:.6;cursor:default}',
-      '.cv-voice-wrap>textarea,.cv-voice-wrap>input{padding-right:62px!important;width:100%;box-sizing:border-box}'
+      '.cv-voice-wrap>textarea,.cv-voice-wrap>input{flex:1 1 auto;min-width:0;',
+      'padding-right:62px!important;width:100%;box-sizing:border-box}'
     ].join('');
     document.head.appendChild(s);
   }

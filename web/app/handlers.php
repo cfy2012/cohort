@@ -1591,5 +1591,30 @@ function api_asr(array $args): void {
     @unlink($wav);
 
     $text = trim(preg_replace('/\s+/u', ' ', (string)$text));
+    $text = asr_to_simplified($text);
     json_out(['ok' => true, 'text' => $text, 'engine' => $engine]);
 }
+
+/** whisper 对中文默认吐繁体字；用一份字级映射表转回简体（表在 web/app/t2s.json） */
+function asr_to_simplified(string $text): string {
+    static $map = null;
+    if ($text === '') return $text;
+    if ($map === null) {
+        $raw = @file_get_contents(WEB_DIR . '/app/t2s.json');
+        $j = $raw ? json_decode($raw, true) : null;
+        $map = is_array($j) ? $j : ['chars' => [], 'phrases' => []];
+    }
+    foreach ((array)($map['phrases'] ?? []) as $from => $to) {
+        $text = str_replace($from, $to, $text);
+    }
+    $chars = (array)($map['chars'] ?? []);
+    if (!$chars) return $text;
+    $out = '';
+    $len = mb_strlen($text, 'UTF-8');
+    for ($i = 0; $i < $len; $i++) {
+        $ch = mb_substr($text, $i, 1, 'UTF-8');
+        $out .= $chars[$ch] ?? $ch;
+    }
+    return $out;
+}
+

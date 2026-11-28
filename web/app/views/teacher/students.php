@@ -13,7 +13,7 @@ $pageTitle = '学生名单';
 <div class="grid cols-2">
   <div class="card">
     <div class="card-head"><h2>导入名单</h2><span class="hint">一行一个：学号 姓名 [班级]</span></div>
-    <textarea id="import-text" placeholder="20260701 陈福尧&#10;20260702 李四&#10;20260703 王五"></textarea>
+    <textarea id="import-text" data-voice placeholder="20260701 陈福尧&#10;20260702 李四&#10;20260703 王五"></textarea>
     <div class="flex mt16">
       <button class="btn btn-primary" data-action="import-students">导入并替换</button>
       <span class="small dim">支持空格、逗号、制表符分隔</span>
@@ -60,3 +60,4 @@ $pageTitle = '学生名单';
     <div class="empty">名单为空，先在上方导入</div>
   <?php endif; ?>
 </div>
+

@@ -53,7 +53,7 @@ $aiCfg = $config['ai'];
       <input type="text" id="cfg-ai-context" value="<?= e((string)$config['chat']['context_messages']) ?>">
     </label>
     <label class="field"><span>附加系统提示（追加在助教人设后）</span>
-      <textarea id="cfg-ai-extra" placeholder="例如：回答控制在 200 字以内；本班学生容易混淆电压表接法"><?= e($aiCfg['system_extra']) ?></textarea>
+      <textarea id="cfg-ai-extra" data-voice placeholder="例如：回答控制在 200 字以内；本班学生容易混淆电压表接法"><?= e($aiCfg['system_extra']) ?></textarea>
     </label>
   </div>
 </div>
@@ -68,3 +68,4 @@ $aiCfg = $config['ai'];
   </div>
   <div class="notice mt16">全部是纯 JSON / JSONL，可以直接备份整个 data 文件夹。</div>
 </div>
+

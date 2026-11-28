@@ -379,7 +379,7 @@ $aiOk = !empty($ai['ok']);
     <div class="card" style="margin:0">
       <div class="card-head"><h2>粘贴导入（备用）</h2><span class="hint">没有 Excel 文件时用这个</span></div>
       <div class="form">
-        <label>一行一个：学号 姓名 [班级]<textarea id="roster-text" placeholder="20120331 陈福尧 九年七班" style="min-height:150px"></textarea></label>
+        <label>一行一个：学号 姓名 [班级]<textarea id="roster-text" data-voice placeholder="20120331 陈福尧 九年七班" style="min-height:150px"></textarea></label>
         <div class="form-foot">
           <button class="btn btn-primary btn-sm" id="btn-import">整份替换</button>
           <button class="btn btn-sm" id="btn-import-merge">追加/更新</button>
@@ -476,7 +476,7 @@ window.COHORT_CONSOLE = {
 </script>
 <script src="/assets/app.js?v=0.4.5"></script>
 <script src="/assets/console.js?v=0.5.5"></script>
-<script src="/assets/voice.js?v=0.1.0"></script>
+<script src="/assets/voice.js?v=0.1.1"></script>
 </body>
 </html>
 <?php
@@ -492,6 +492,8 @@ function console_ip_grid_html(array $net): string {
     }
     return $out;
 }
+
+
 
 
 
