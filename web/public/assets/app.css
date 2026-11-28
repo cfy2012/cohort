@@ -476,3 +476,12 @@ input[type=checkbox], input[type=radio] { accent-color: #201f19; }
   font-style: normal; margin-left: auto; font-size: 10px;
   border: 1px solid var(--line); border-radius: 999px; padding: 0 6px; color: var(--dim);
 }
+
+/* 排课弹窗里的实验室勾选行 */
+.cm-lab-row {
+  display: flex; flex-direction: row; align-items: center; gap: 8px;
+  padding: 6px 2px; font-size: 13px; color: var(--ink);
+  border-bottom: 1px dashed var(--line);
+}
+.cm-lab-row:last-child { border-bottom: 0; }
+.cm-lab-row input { flex: none; }

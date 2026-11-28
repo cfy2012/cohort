@@ -830,6 +830,17 @@
         g.line(ctx, cx - 6, 8, cx + 8, h - 10, { color: c, w: 1.3 });
         g.line(ctx, cx + 8, h - 10, w - 4, 12, { color: c, w: 1.3 });
         break;
+      case 'probe':
+        g.rect(ctx, cx - 5, 6, 10, 14, { color: c, w: 1.2, fill: '#fdfcf8', fillAlpha: .85 });
+        g.line(ctx, cx, 20, cx, h - 10, { color: c, w: 1.6 });
+        g.circle(ctx, cx, h - 8, 5, { color: c, w: 1.1, fill: '#e7b0a8', fillAlpha: .8 });
+        g.text(ctx, cx + 2, 16, '℃', { size: 8, color: '#ad1f26' });
+        break;
+      case 'ice':
+        g.poly(ctx, [[8, 16], [w - 9, 11], [w - 7, h - 8], [11, h - 10]], { color: c, w: 1.2, fill: '#cfe8f2', fillAlpha: .5 });
+        g.line(ctx, 14, 20, 22, 28, { color: '#ffffff', w: 1, alpha: .9 });
+        g.line(ctx, 22, 28, 30, 24, { color: '#ffffff', w: 1, alpha: .9 });
+        break;
       case 'rbox':
         g.rect(ctx, 5, 12, w - 10, h - 24, { color: c, w: 1.3, fill: '#efe8d6', fillAlpha: .6 });
         g.rect(ctx, 10, 18, 12, 16, { color: c, w: 1 });
@@ -1061,9 +1072,9 @@
     resize();
     window.addEventListener('resize', resize);
 
-    // 实验页签：按老师后台的开放清单过滤，再按「力学 / 光学 / 电学 / 综合」归组
+    // 实验页签：按老师后台的开放清单过滤，再按「力学 / 热学 / 光学 / 电学 / 综合」归组
     var tabs = $('exp-tabs');
-    var FAMILIES = ['力学', '光学', '电学', '综合'];
+    var FAMILIES = ['力学', '热学', '光学', '电学', '综合'];
     function renderTabs(enabled) {
       var list = enabled && enabled.length ? App.exps.filter(function (e) { return enabled.indexOf(e.id) >= 0; }) : App.exps.slice();
       if (!list.length) list = App.exps.slice(0, 1);
@@ -1166,6 +1177,27 @@
       var def = (want && list.some(function (e) { return e.id === want; })) ? want
         : (cfg && cfg.default && list.some(function (e) { return e.id === cfg.default; }) ? cfg.default : list[0].id);
       activate(def, true);
+      // 上课中：页签只放本节课选中的实验室，并在顶部标出来
+      if (cfg && cfg.scope === 'lesson') {
+        var tag = $('lesson-tag');
+        if (tag) {
+          var names = (list || []).map(function (e) { return e.name; }).join(' / ');
+          tag.textContent = '本节课：' + (cfg.lesson || '实验') + (names ? ' · ' + names : '');
+          document.title = (cfg.lesson || '实验') + ' · 草纸物理实验室';
+        }
+      }
+      // 本节课指定了自定义实验室：直接载入那一间
+      if (cfg && cfg.custom) {
+        try {
+          var u = new URL(location.href);
+          if (!u.searchParams.get('lab')) {
+            u.searchParams.set('lab', cfg.custom);
+            u.searchParams.set('m', 'sandbox');
+            location.replace(u.toString());
+            return;
+          }
+        } catch (e) { }
+      }
       if (cfg && cfg.free === false) {
         toast('老师这次只开放了课堂内使用，自由练习已关闭');
       }

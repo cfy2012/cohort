@@ -11,7 +11,7 @@
 
   window.CohortLab.register({
     id: 'circuit',
-    name: '伏安法测电阻',
+    name: '伏安法实验室',
     group: '电学',
     grade: '九年级',
     aim: '用电流表和电压表测出定值电阻的阻值，理解滑动变阻器在电路中的作用。',
@@ -268,3 +268,4 @@
     }
   });
 })();
+

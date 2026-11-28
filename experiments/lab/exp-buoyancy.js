@@ -20,7 +20,7 @@
 
   window.CohortLab.register({
     id: 'buoyancy',
-    name: '浮力大小',
+    name: '浮力实验室',
     group: '力学',
     grade: '八年级下',
     aim: '把圆柱体慢慢浸入水中，看弹簧测力计示数怎么变，找出 F浮 与 V排 的关系。',
@@ -259,3 +259,4 @@
     }
   });
 })();
+

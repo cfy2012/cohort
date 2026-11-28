@@ -58,6 +58,7 @@ function student_do_join(string $no, string $name): ?string {
 
     $student = ['no' => $no, 'name' => $name, 'class' => $hit['class'] ?? config()['class_name']];
     $_SESSION['student'] = $student;
+    session_write_close();
 
     $session = session_current();
     if ($session && $session['status'] === 'live') {
@@ -419,6 +420,7 @@ function web_teacher_do_login(): void {
     $pw = (string)($_POST['password'] ?? '');
     if (hash_equals((string)config()['teacher_password'], $pw)) {
         $_SESSION['teacher'] = true;
+        session_write_close();
         redirect('/console');
     }
     render('teacher/login', ['error' => '密码不正确'], 'teacher/blank');
@@ -556,9 +558,12 @@ function api_admin_save_settings(array $args): void {
         if (isset($in[$k]) && trim((string)$in[$k]) !== '') $patch[$k] = trim((string)$in[$k]);
     }
     if (isset($in['ai']) && is_array($in['ai'])) {
-        $ai = [];
+        $ai = config()['ai'] ?: [];
         if (isset($in['ai']['base_url']))    $ai['base_url']    = trim((string)$in['ai']['base_url']);
         if (isset($in['ai']['model']))       $ai['model']       = trim((string)$in['ai']['model']);
+        if (isset($in['ai']['api_key']))     $ai['api_key']     = trim((string)$in['ai']['api_key']);
+        if (isset($in['ai']['key_header']))  $ai['key_header']  = trim((string)$in['ai']['key_header']) ?: 'Authorization';
+        if (isset($in['ai']['key_prefix']))  $ai['key_prefix']  = trim((string)$in['ai']['key_prefix']);
         if (isset($in['ai']['temperature'])) $ai['temperature'] = max(0, min(2, (float)$in['ai']['temperature']));
         if (isset($in['ai']['max_tokens']))  $ai['max_tokens']  = max(64, min(4096, (int)$in['ai']['max_tokens']));
         if (isset($in['ai']['timeout']))     $ai['timeout']     = max(10, min(600, (int)$in['ai']['timeout']));
@@ -570,6 +575,29 @@ function api_admin_save_settings(array $args): void {
     }
     config_save($patch);
     json_out(['ok' => true, 'config' => config()]);
+}
+
+/** 测试 AI 连接：体感 3 秒内给出到底是地址错、key 错还是模型名错 */
+function api_admin_ai_test(array $args): void {
+    require_teacher();
+    $t0 = microtime(true);
+    $m = ai_models(true);
+    $ms = (int)round((microtime(true) - $t0) * 1000);
+    $cfg = config()['ai'] ?? [];
+    if (!$m['ok']) {
+        json_out(['ok' => false, 'latency_ms' => $ms, 'error' => $m['error'] ?: '连不上',
+                  'base_url' => $cfg['base_url'] ?? '', 'model' => $cfg['model'] ?? '']);
+    }
+    $models = $m['models'];
+    $want = trim((string)($cfg['model'] ?? ''));
+    json_out([
+        'ok'         => true,
+        'latency_ms' => $ms,
+        'models'     => $models,
+        'model_ok'   => $want === '' || in_array($want, $models, true),
+        'model'      => $want,
+        'note'       => count($models) ? '' : '接口没返回模型清单（不少外部服务是这样），只要有模型名就能用',
+    ]);
 }
 
 function api_admin_session_start(array $args): void {
@@ -958,7 +986,19 @@ function api_admin_classes(array $args): void {
         'ok'       => true,
         'classes'  => classes_all(),
         'students' => students_all(),
+        'default'  => config()['class_name'],
     ]);
+}
+
+/** 把某个班设为默认班级（系统设置里的"默认班级"跟着走） */
+function api_admin_class_default(array $args): void {
+    require_teacher();
+    $in = body_json();
+    $id = trim((string)($in['id'] ?? ''));
+    $c = $id !== '' ? class_get($id) : null;
+    if (!$c) json_out(['ok' => false, 'error' => '班级不存在'], 404);
+    config_save(['class_name' => (string)$c['name']]);
+    json_out(['ok' => true, 'default' => config()['class_name']]);
 }
 
 /** 新建/编辑班级。copy_from = 勾选其他班，成员直接并进来（合班） */
@@ -999,12 +1039,24 @@ function api_admin_class_save(array $args): void {
         unset($c);
     }
     if (!$new) {
+        // 同名班级不重复建：直接接管现有那条（改成员/改默认都走它）
+        foreach ($list as &$c) {
+            if (($c['name'] ?? '') === $name) {
+                if ($members) $c['members'] = $members;   // 没勾人就不动原名单，避免手滑清空
+                $c['updated_at'] = now_iso();
+                $new = $c;
+            }
+        }
+        unset($c);
+    }
+    if (!$new) {
         $new = ['id' => 'k' . substr(md5($name . microtime(true)), 0, 8), 'name' => $name,
                 'members' => $members, 'created_at' => now_iso()];
         $list[] = $new;
     }
     classes_save($list);
-    json_out(['ok' => true, 'class' => $new, 'classes' => classes_all()]);
+    if (!empty($in['default'])) config_save(['class_name' => $name]);
+    json_out(['ok' => true, 'class' => $new, 'classes' => classes_all(), 'default' => config()['class_name']]);
 }
 
 function api_admin_class_delete(array $args): void {
@@ -1243,25 +1295,74 @@ function lab_config_save(array $next): void {
     json_atomic_write(DATA_DIR . '/lab_config.json', $next);
 }
 
-/** 前端实验室页读这个：哪些页签开着、默认进哪个 */
+/** 前端实验室页读这个：哪些页签开着、默认进哪个。上课期间只放本节课选中的实验室。 */
 function api_lab_config(array $args): void {
     $c = lab_config();
     $mods = lab_modules();
+    $modIds = array_map(fn($m) => $m['id'], $mods);
     $enabled = [];
     foreach ($mods as $m) if (in_array($m['id'], (array)$c['enabled'], true)) $enabled[] = $m['id'];
     if (!$enabled) $enabled = [$mods[0]['id'] ?? 'lever'];
     if (!in_array($c['default'], $enabled, true)) $c['default'] = $enabled[0];
-    json_out(['ok' => true, 'enabled' => $enabled, 'default' => $c['default'], 'free' => (bool)$c['free']]);
+
+    $scope   = 'global';
+    $lesson  = '';
+    $custom  = '';
+    $s = session_current();
+    if ($s && ($s['status'] ?? '') === 'live' && trim((string)($s['lab'] ?? '')) !== '') {
+        $picked = [];
+        $customIds = [];
+        foreach (preg_split('/[\s,，+]+/u', (string)$s['lab']) as $tok) {
+            $tok = trim($tok);
+            if ($tok === '') continue;
+            if (strpos($tok, 'module:') === 0) {
+                $id = substr($tok, 7);
+                if (in_array($id, $modIds, true)) $picked[] = $id;
+            } elseif (strpos($tok, 'custom:') === 0) {
+                $customIds[] = substr($tok, 7);
+            } elseif (in_array($tok, $modIds, true)) {
+                $picked[] = $tok;
+            } elseif ($tok === 'sandbox') {
+                $picked[] = 'sandbox';
+            } else {
+                $customIds[] = $tok;
+            }
+        }
+        $picked = array_values(array_unique($picked));
+        if ($customIds) {
+            // 自定义实验室统一走通用台载入
+            $picked[] = 'sandbox';
+            $picked = array_values(array_unique($picked));
+            $custom = (string)($customIds[0] ?? '');
+        }
+        if ($picked) {
+            $enabled = $picked;
+            $scope = 'lesson';
+            $lesson = (string)($s['title'] ?? '');
+            if (!in_array($c['default'], $enabled, true)) $c['default'] = $enabled[0];
+        }
+    }
+
+    json_out([
+        'ok'      => true,
+        'enabled' => $enabled,
+        'default' => $c['default'],
+        'free'    => (bool)$c['free'],
+        'scope'   => $scope,
+        'lesson'  => $lesson,
+        'custom'  => $custom,
+    ]);
 }
 
-/** 四个实验模块清单（实验页里的页签），后台用来做开关 */
+/** 六个实验模块清单（实验页里的页签，力学/热学/光学/电学/综合），后台用来做开关 */
 function lab_modules(): array {
     return [
-        ['id' => 'lever',    'name' => '杠杆平衡',    'note' => '力矩动力学，可挂 6 只 50g 钩码', 'group' => '力学'],
-        ['id' => 'buoyancy', 'name' => '浮力大小',    'note' => '阿基米德原理，水面上涨', 'group' => '力学'],
-        ['id' => 'lens',     'name' => '凸透镜成像',  'note' => '1/f = 1/u + 1/v，光屏可移动', 'group' => '光学'],
-        ['id' => 'circuit',  'name' => '伏安法测电阻','note' => '真实回路 + 电表内阻误差', 'group' => '电学'],
-        ['id' => 'sandbox',  'name' => '通用实验台',  'note' => '电学 + 光学自由摆放，可载入自定义实验室', 'group' => '综合'],
+        ['id' => 'lever',    'name' => '杠杆实验室',      'note' => '力矩动力学，可挂 6 只 50g 钩码', 'group' => '力学'],
+        ['id' => 'buoyancy', 'name' => '浮力实验室',      'note' => '阿基米德原理，水面上涨', 'group' => '力学'],
+        ['id' => 'states',   'name' => '水温变化实验室',  'note' => '密闭空腔，牛顿冷却 + 潜热相变，看 0℃ / 100℃ 平台', 'group' => '热学'],
+        ['id' => 'lens',     'name' => '凸透镜实验室',    'note' => '1/f = 1/u + 1/v，光屏可移动', 'group' => '光学'],
+        ['id' => 'circuit',  'name' => '伏安法实验室',    'note' => '真实回路 + 电表内阻误差', 'group' => '电学'],
+        ['id' => 'sandbox',  'name' => '通用实验台',      'note' => '电学 + 光学自由摆放，可载入自定义实验室', 'group' => '综合'],
     ];
 }
 
@@ -1297,6 +1398,18 @@ function labs_all(): array {
  * 格式约定：''（不开放） | sandbox（自由实验台） | custom:<实验室id> | module:<模块id>
  */
 function lab_binding_error(string $raw): ?string {
+    $raw = trim($raw);
+    if ($raw === '' || $raw === 'sandbox') return null;
+    // 一节课可以勾多间：module:states,module:circuit / custom:xxx
+    $parts = preg_split('/[\s,，+]+/u', $raw, -1, PREG_SPLIT_NO_EMPTY);
+    foreach ($parts as $p) {
+        $err = lab_binding_one_error(trim($p));
+        if ($err !== null) return $err;
+    }
+    return null;
+}
+
+function lab_binding_one_error(string $raw): ?string {
     if ($raw === '' || $raw === 'sandbox') return null;
     if (strpos($raw, 'custom:') === 0) {
         $id = substr($raw, 7);
@@ -1617,4 +1730,5 @@ function asr_to_simplified(string $text): string {
     }
     return $out;
 }
+
 

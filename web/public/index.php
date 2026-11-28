@@ -77,6 +77,8 @@ $routes = [
     ['POST', '#^/api/admin/ai/quick$#',    'api_admin_ai_quick'],
     ['GET',  '#^/api/admin/ai/quick$#',    'api_admin_ai_quick'],
     ['POST', '#^/api/admin/settings$#',    'api_admin_save_settings'],
+    ['POST', '#^/api/admin/ai/test$#',     'api_admin_ai_test'],
+    ['POST', '#^/api/admin/class/default$#','api_admin_class_default'],
     ['POST', '#^/api/admin/session/start$#','api_admin_session_start'],
     ['POST', '#^/api/admin/session/stop$#', 'api_admin_session_stop'],
     ['GET',  '#^/api/admin/session/stop$#', 'api_admin_session_stop'],

@@ -155,6 +155,9 @@ function is_teacher(): bool { return ($_SESSION['teacher'] ?? false) === true; }
 
 function require_teacher(): void {
     if (!is_teacher()) redirect('/teacher');
+    // 身份已读出来，立刻放开会话锁：老师端会并发打好几个接口，
+    // 只要有一个慢请求（比如探 AI 环境）握着锁，新建班级这种请求就会一直排队。
+    if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
 }
 
 function current_student(): ?array {
@@ -164,6 +167,7 @@ function current_student(): ?array {
 function require_student(): array {
     $s = current_student();
     if (!$s) json_out(['ok' => false, 'error' => '未登录，请先输入姓名学号', 'code' => 'NO_STUDENT'], 401);
+    if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
     return $s;
 }
 

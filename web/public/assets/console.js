@@ -102,20 +102,20 @@
     document.getElementById('cm-title').textContent = c.id ? '编辑课程' : '新建课程';
     document.getElementById('cm-id').value = c.id || '';
     document.getElementById('cm-name').value = c.title || '';
-    document.getElementById('cm-date').value = c.date || '';
+    document.getElementById('cm-date').value = c.date || new Date().toISOString().slice(0, 10);
     document.getElementById('cm-period').value = c.period || '';
-    document.getElementById('cm-class').value = c.class || '';
+    var defClass = (document.getElementById('cfg-class') || {}).value || '';
+    document.getElementById('cm-class').value = c ? (c.class || '') : defClass;
     document.getElementById('cm-exp').value = c.experiment || '';
-    var cmLab = document.getElementById('cm-lab');
-    if (cmLab) {
-      // 老课程没有 lab 字段时，按实验页签给个默认：绑了实验就默认开自由台
-      var v = c.lab != null ? c.lab : (c.experiment ? 'sandbox' : '');
-      var has = false;
-      for (var i = 0; i < cmLab.options.length; i++) {
-        if (cmLab.options[i].value === v) { has = true; break; }
-      }
-      cmLab.value = has ? v : '';
-    }
+    // 本节开放的实验室：支持勾多间，存成 module:states,module:circuit
+    var labRaw = c.lab != null ? String(c.lab) : (c.experiment ? 'sandbox' : '');
+    var parts = labRaw.split(/[,，+\s]+/).filter(Boolean);
+    document.querySelectorAll('[data-cm-lab]').forEach(function (x) {
+      var v = x.getAttribute('value');
+      var hit = parts.indexOf(v) >= 0;
+      if (!hit && v && parts.indexOf('custom:' + v) >= 0) hit = true;
+      x.checked = hit;
+    });
     document.getElementById('cm-note').value = c.note || '';
     document.getElementById('cm-msg').textContent = '';
     modal.hidden = false;
@@ -153,7 +153,11 @@
       period: document.getElementById('cm-period').value.trim(),
       class: document.getElementById('cm-class').value.trim(),
       experiment: document.getElementById('cm-exp').value,
-      lab: document.getElementById('cm-lab') ? document.getElementById('cm-lab').value : '',
+      lab: (function () {
+        var on = [];
+        document.querySelectorAll('[data-cm-lab]').forEach(function (x) { if (x.checked && x.value) on.push(x.value); });
+        return on.join(',');
+      })(),
       note: document.getElementById('cm-note').value.trim()
     };
     if (!p.title) { document.getElementById('cm-msg').textContent = '课程名称不能空'; return; }
@@ -390,7 +394,7 @@
   if (bm) bm.addEventListener('click', function () { doImport('merge'); });
 
   // ---------------- 班级 / 学生 ----------------
-  var clData = { classes: [], students: [] };
+  var clData = { classes: [], students: [], default: '' };
   var clModal = document.getElementById('class-modal');
   var stModal = document.getElementById('student-modal');
 
@@ -399,10 +403,25 @@
       if (!r.ok) return toast(r.error || '读取班级失败', 'bad');
       clData.classes = r.classes || [];
       clData.students = r.students || [];
+      clData.default = r.default || '';
       renderClasses();
       renderStudents();
       fillClassFilter();
+      fillDefaultSelect();
     });
+  }
+
+  // 系统设置里的「默认班级」下拉：跟着班级列表走
+  function fillDefaultSelect() {
+    var sel = document.getElementById('cfg-class');
+    if (!sel) return;
+    var cur = clData.default || sel.value || '';
+    var names = clData.classes.map(function (c) { return c.name; });
+    if (cur && names.indexOf(cur) < 0) names.unshift(cur);
+    sel.innerHTML = names.map(function (n) {
+      return '<option value="' + esc(n) + '">' + esc(n) + (n === clData.default ? '（默认）' : '') + '</option>';
+    }).join('') || '<option value="">（还没有班级）</option>';
+    sel.value = cur;
   }
 
   function stuName(no) {
@@ -418,20 +437,33 @@
     if (!clData.classes.length) { box.innerHTML = '<div class="empty">还没班级，点右上角新建一个</div>'; return; }
     box.innerHTML = clData.classes.map(function (c) {
       var mem = (c.members || []);
+      var isDef = (c.name === clData.default);
       var who = mem.length ? mem.slice(0, 24).map(function (no) {
         var n = stuName(no);
         return '<span class="badge">' + esc(n || no) + '</span>';
       }).join(' ') + (mem.length > 24 ? ' <span class="small dim">…共 ' + mem.length + ' 人</span>' : '') : '<span class="dim">暂无成员</span>';
+      var made = (c.created_at || '').slice(0, 10);
       return '<div class="list-item" style="flex-direction:column;align-items:stretch;gap:8px">'
         + '<div class="flex" style="justify-content:space-between;align-items:flex-start">'
-        + '<div><div class="ttl">' + esc(c.name) + '</div><div class="sub">' + mem.length + ' 人</div></div>'
+        + '<div><div class="ttl">' + esc(c.name) + (isDef ? ' <span class="badge">默认</span>' : '') + '</div>'
+        + '<div class="sub">' + mem.length + ' 人' + (made ? ' · 建于 ' + esc(made) : '') + '</div></div>'
         + '<div class="flex" style="gap:6px">'
+        + (isDef ? '' : '<button class="btn btn-sm btn-ghost" data-cl-def="' + esc(c.id) + '">设为默认</button>')
         + '<button class="btn btn-sm btn-ghost" data-cl-edit="' + esc(c.id) + '">编辑</button>'
         + '<button class="btn btn-sm btn-ghost" data-cl-del="' + esc(c.id) + '">删除</button>'
         + '</div></div>'
         + '<div class="small" style="line-height:2">' + who + '</div>'
         + '</div>';
     }).join('');
+    box.querySelectorAll('[data-cl-def]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        api('/api/admin/class/default', { id: b.getAttribute('data-cl-def') }).then(function (r) {
+          if (!r.ok) return toast(r.error || '设置失败', 'bad');
+          toast('默认班级：' + r.default, 'ok');
+          readClasses();
+        });
+      });
+    });
     box.querySelectorAll('[data-cl-edit]').forEach(function (b) {
       b.addEventListener('click', function () { openClass(b.getAttribute('data-cl-edit')); });
     });
@@ -489,18 +521,34 @@
     });
   }
 
+  var classLoaded = false;
   function openClass(id) {
     if (!clModal) return;
-    if (!clData.classes.length && !id) { readClasses().then(function () { openClass(id); }); return; }
+    if (id && !clData.classes.length && !classLoaded) {
+      classLoaded = true;
+      readClasses().then(function () { openClass(id); });
+      return;
+    }
+    var c = id ? clData.classes.filter(function (x) { return x.id === id; })[0] : null;
     document.getElementById('clm-id').value = id || '';
     document.getElementById('clm-msg').textContent = '';
-    document.getElementById('clm-title').textContent = id ? '编辑班级' : '新建班级';
-    var c = null;
-    if (id) c = clData.classes.filter(function (x) { return x.id === id; })[0];
+    document.getElementById('clm-title').textContent = id ? '编辑班级 · ' + (c ? c.name : '') : '新建班级';
     document.getElementById('clm-name').value = c ? c.name : '';
+    document.getElementById('clm-default').checked = !!(c && c.name === clData.default);
+    // 班级成员：直接勾学生，勾完就是属性里的名单
+    var mem = c ? (c.members || []).map(String) : [];
+    var CHK = 'display:flex;flex-direction:row;align-items:center;gap:8px;padding:5px 0;font-size:13px;color:var(--ink)';
+    document.getElementById('clm-members').innerHTML = clData.students.map(function (s) {
+      var no = String(s.no);
+      var other = classesOf(no).map(function (x) { return x.name; });
+      return '<label style="' + CHK + '">'
+        + '<input type="checkbox" data-clm-mem value="' + esc(no) + '"' + (mem.indexOf(no) >= 0 ? ' checked' : '') + '> '
+        + '<span class="mono small">' + esc(no) + '</span> ' + esc(s.name)
+        + (other.length ? ' <span class="small dim">' + esc(other.join('、')) + '</span>' : '')
+        + '</label>';
+    }).join('') || '<div class="empty">名单还是空的，先在右边注册学生</div>';
     var wrap = document.getElementById('clm-copy-wrap');
     wrap.hidden = !!id;
-    var CHK = 'display:flex;flex-direction:row;align-items:center;gap:8px;padding:5px 0;font-size:13px;color:var(--ink)';
     document.getElementById('clm-copy').innerHTML = clData.classes.filter(function (x) { return x.id !== id; }).map(function (x) {
       return '<label style="' + CHK + '">'
         + '<input type="checkbox" value="' + esc(x.id) + '"> ' + esc(x.name)
@@ -509,9 +557,14 @@
     clModal.hidden = false;
   }
 
+  var stuLoaded = false;
   function openStudent(no) {
     if (!stModal) return;
-    if (!clData.classes.length && !clData.students.length) { readClasses().then(function () { openStudent(no); }); return; }
+    if (!stuLoaded && !clData.students.length && !no) {
+      stuLoaded = true;
+      readClasses().then(function () { openStudent(no); });
+      return;
+    }
     document.getElementById('sm-orig').value = no || '';
     document.getElementById('sm-msg').textContent = '';
     document.getElementById('sm-title').textContent = no ? '编辑学生' : '注册学生';
@@ -542,8 +595,13 @@
     if (!name) { document.getElementById('clm-msg').textContent = '班级名不能空'; return; }
     var copy = [];
     document.querySelectorAll('#clm-copy input:checked').forEach(function (x) { copy.push(x.value); });
+    var mem = [];
+    document.querySelectorAll('[data-clm-mem]').forEach(function (x) { if (x.checked) mem.push(x.value); });
     clSave.disabled = true;
-    api('/api/admin/class/save', { id: id, name: name, copy_from: copy }).then(function (r) {
+    api('/api/admin/class/save', {
+      id: id, name: name, copy_from: copy, members: mem,
+      'default': document.getElementById('clm-default').checked
+    }).then(function (r) {
       clSave.disabled = false;
       if (!r.ok) { document.getElementById('clm-msg').textContent = r.error || '保存失败'; return; }
       clModal.hidden = true;
@@ -634,7 +692,7 @@
           }
           var on = (labCfg.enabled || []).indexOf(m.id) >= 0;
           html += '<div class="list-item"><div><div class="ttl">' + esc(m.name)
-            + ' <span class="small mono dim">' + esc(m.id) + '</span></div><div class="sub">' + esc(m.note || '') + '</div></div>'
+            + '</div><div class="sub">' + esc(m.note || '') + '</div></div>'
             + '<div class="flex" style="gap:14px;align-items:center">'
             + '<label class="small flex" style="gap:6px;align-items:center"><input type="checkbox" data-mod-on="' + esc(m.id) + '"' + (on ? ' checked' : '') + '> 开放</label>'
             + '<label class="small flex" style="gap:6px;align-items:center"><input type="radio" name="lab-def" value="' + esc(m.id) + '"' + (labCfg.default === m.id ? ' checked' : '') + '> 默认</label>'
@@ -674,8 +732,7 @@
     fetch('/api/lab/labs', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) {
       var labs = (d && d.labs) || [];
       box.innerHTML = labs.map(function (l) {
-        return '<div class="list-item"><div><div class="ttl">' + esc(l.name)
-          + ' <span class="small mono dim">' + esc(l.id) + '</span></div>'
+        return '<div class="list-item"><div><div class="ttl">' + esc(l.name) + '</div>'
           + '<div class="sub">' + (l.count || 0) + ' 件器材' + (l.updated_at ? ' · ' + esc(l.updated_at.slice(0, 16).replace('T', ' ')) : '') + '</div></div>'
           + '<div class="flex"><button class="btn btn-sm" data-lab-link="' + esc(l.id) + '">复制链接</button>'
           + '<button class="btn btn-sm" data-lab-del="' + esc(l.id) + '">删除</button></div></div>';
@@ -756,7 +813,7 @@
       ai: {
         base_url: document.getElementById('cfg-base').value,
         model: document.getElementById('cfg-model').value,
-        max_tokens: 700, timeout: 180
+        api_key: document.getElementById('cfg-key') ? document.getElementById('cfg-key').value.trim() : ''
       },
       chat: { context_messages: parseInt(document.getElementById('cfg-ctx').value, 10) || 6 }
     };
@@ -765,6 +822,28 @@
       if (!r.ok) { m.textContent = r.error || '保存失败'; return; }
       m.textContent = '已保存';
       toast('设置已保存', 'ok');
+      readClasses();
     });
+  });
+
+  // 测试 AI 连接：先把当前填的地址/key 存下来再试，免得测的是旧配置
+  var aiTest = document.getElementById('btn-ai-test');
+  if (aiTest) aiTest.addEventListener('click', function () {
+    var m = document.getElementById('ai-test-msg');
+    m.textContent = '正在连…';
+    aiTest.disabled = true;
+    saveCfg.click();
+    setTimeout(function () {
+      api('/api/admin/ai/test', {}).then(function (r) {
+        aiTest.disabled = false;
+        if (!r.ok) {
+          m.textContent = '连不上（' + (r.latency_ms || 0) + ' ms）：' + (r.error || '未知错误') + '　地址 ' + (r.base_url || '');
+          return;
+        }
+        var names = (r.models || []).slice(0, 4).join('、');
+        m.textContent = '连上了 · ' + (r.latency_ms || 0) + ' ms' + (names ? ' · 可用模型：' + names : '')
+          + (r.model && r.model_ok === false ? '　（当前模型名不在清单里，确认一下拼写）' : '');
+      });
+    }, 900);
   });
 })();

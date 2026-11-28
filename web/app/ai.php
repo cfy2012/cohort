@@ -5,11 +5,26 @@
  * 学生端永不直连 1234，一律经这里中转：便于限流、审计、上下文隔离。
  */
 
-function ai_base(): string { return rtrim(config()['ai']['base_url'], '/'); }
+function ai_base(): string {
+    $b = rtrim(trim((string)config()['ai']['base_url']), '/');
+    // 用户常把 .../v1 一起粘进来，这里统一去掉，后面拼 /v1/chat/completions 不会变双份
+    if (preg_match('#/v1$#', $b)) $b = substr($b, 0, -3);
+    return $b;
+}
+
+/** 外部服务的鉴权头（本机 LM Studio 留空即可，带了也无害） */
+function ai_auth_headers(): array {
+    $cfg = config()['ai'] ?? [];
+    $key = trim((string)($cfg['api_key'] ?? ''));
+    if ($key === '') return [];
+    $name = trim((string)($cfg['key_header'] ?? '')) ?: 'Authorization';
+    $prefix = array_key_exists('key_prefix', $cfg) ? (string)$cfg['key_prefix'] : 'Bearer ';
+    return [$name . ': ' . $prefix . $key];
+}
 
 function http_json_request(string $method, string $url, ?array $payload = null, int $timeout = 10): array {
     $ch = curl_init($url);
-    $headers = ['Content-Type: application/json', 'Accept: application/json'];
+    $headers = array_merge(['Content-Type: application/json', 'Accept: application/json'], ai_auth_headers());
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_CUSTOMREQUEST  => $method,
@@ -31,13 +46,14 @@ function http_json_request(string $method, string $url, ?array $payload = null, 
     return ['ok' => $code >= 200 && $code < 300, 'error' => $data['error']['message'] ?? null, 'code' => $code, 'data' => $data, 'raw' => $raw];
 }
 
-/** 服务是否在线（同一次请求内缓存结果） */
-function ai_models(): array {
+/** 服务是否在线（同一次请求内缓存结果）；$fresh=true 时不走缓存，用于"测试连接" */
+function ai_models(bool $fresh = false): array {
     static $cache = null;
+    if ($fresh) $cache = null;
     if ($cache !== null) return $cache;
     $r = http_json_request('GET', ai_base() . '/v1/models', null, 4);
     if (!$r['ok'] || !is_array($r['data']['data'] ?? null)) {
-        $cache = ['ok' => false, 'models' => [], 'error' => $r['error'] ?? 'LM Studio 未响应'];
+        $cache = ['ok' => false, 'models' => [], 'error' => $r['error'] ?? ('AI 服务未响应（' . ai_base() . '）')];
         return $cache;
     }
     $models = array_map(fn($m) => $m['id'] ?? '', $r['data']['data']);
@@ -65,11 +81,12 @@ function ai_chat(array $messages, array $opts = []): array {
     } elseif (($cfg['model'] ?? '') !== '') {
         $candidates[] = $cfg['model'];
     }
-    foreach (ai_models()['models'] as $m) {
-        if (!in_array($m, $candidates, true)) $candidates[] = $m;
+    if (!$candidates) {
+        foreach (ai_models()['models'] as $m) $candidates[] = $m;
     }
     if (!$candidates) {
-        return ['ok' => false, 'content' => '', 'error' => 'LM Studio 中没有已加载的模型'];
+        $m = ai_models(true);
+        return ['ok' => false, 'content' => '', 'error' => $m['error'] ?: 'AI 服务里没有可用模型，请在设置里填模型名'];
     }
 
     $tryCount = max(1, min(6, (int)($opts['try'] ?? 3)));

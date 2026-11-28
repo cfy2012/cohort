@@ -17,7 +17,7 @@ $aiOk = !empty($ai['ok']);
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= e($pageTitle) ?> · <?= e(config()['site_title']) ?></title>
-<link rel="stylesheet" href="/assets/app.css?v=0.5.1">
+<link rel="stylesheet" href="/assets/app.css?v=0.5.2">
 <link rel="stylesheet" href="/assets/paper.css?v=0.4.0">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='78' font-size='72'>◉</text></svg>">
 </head>
@@ -329,7 +329,7 @@ $aiOk = !empty($ai['ok']);
         </div>
       </div>
       <div id="class-list" style="max-height:460px;overflow:auto"><div class="empty">加载中…</div></div>
-      <div class="small muted mt8">新建班级时可以勾选别的班，把他们的成员一起并进来（合班）。</div>
+      <div class="small muted mt8">点「编辑」可以改班名、勾选成员，也能把某个班设成默认班级（系统设置里的默认班级跟着走）。</div>
     </div>
 
     <div class="card" style="margin:0">
@@ -359,16 +359,23 @@ $aiOk = !empty($ai['ok']);
         <label>站点名<input id="cfg-title" value="<?= e(config()['site_title']) ?>"></label>
         <div class="row-2">
           <label>学校<input id="cfg-school" value="<?= e(config()['school']) ?>"></label>
-          <label>默认班级<input id="cfg-class" value="<?= e(config()['class_name']) ?>"></label>
+          <label>默认班级<select id="cfg-class"><option value="<?= e(config()['class_name']) ?>"><?= e(config()['class_name']) ?></option></select></label>
         </div>
         <div class="row-2">
           <label>教师口令<input id="cfg-pass" value="<?= e(config()['teacher_password']) ?>"></label>
           <label>上下文轮数<input id="cfg-ctx" type="number" min="2" max="40" value="<?= (int)config()['chat']['context_messages'] ?>"></label>
         </div>
         <div class="row-2">
-          <label>AI 地址<input id="cfg-base" value="<?= e(config()['ai']['base_url']) ?>"></label>
+          <label>AI 地址<input id="cfg-base" value="<?= e(config()['ai']['base_url']) ?>" placeholder="本机 http://127.0.0.1:1234，或外部 https://api.xxx.com"></label>
           <label>默认模型<input id="cfg-model" value="<?= e(config()['ai']['model']) ?>" placeholder="留空=自动挑"></label>
         </div>
+        <label>API Key（外部服务用；本机 LM Studio 留空）
+          <div class="flex" style="gap:8px">
+            <input id="cfg-key" type="password" autocomplete="off" value="<?= e(config()['ai']['api_key'] ?? '') ?>" placeholder="sk-… 只存在本机 data/config.json，学生端看不到" style="flex:1">
+            <button class="btn btn-sm" id="btn-ai-test" type="button">测试连接</button>
+          </div>
+        </label>
+        <div class="small muted" id="ai-test-msg" style="min-height:18px"></div>
         <div class="form-foot">
           <button class="btn btn-primary" id="btn-save-cfg">保存设置</button>
           <span class="small muted" id="cfg-msg"></span>
@@ -414,13 +421,16 @@ $aiOk = !empty($ai['ok']);
           </select>
         </label>
       </div>
-      <label>本节实验室
-        <select id="cm-lab">
+      <div>
+        <div class="small" style="font-weight:600;margin-bottom:6px">本节开放的实验室（只勾这几间，学生端就只看到这几间）</div>
+        <div id="cm-lab-list" class="list" style="max-height:210px;overflow:auto">
           <?php foreach (lab_picker_options() as $o): ?>
-            <option value="<?= e($o['value']) ?>"><?= e($o['label']) ?></option>
+            <label style="display:flex;flex-direction:row;align-items:center;gap:8px;padding:6px 2px;font-size:13px;color:var(--ink);border-bottom:1px dashed var(--line)">
+              <input type="checkbox" data-cm-lab value="<?= e($o['value']) ?>"> <span><?= e($o['label']) ?></span>
+            </label>
           <?php endforeach; ?>
-        </select>
-      </label>
+        </div>
+      </div>
       <label>备注<input id="cm-note" placeholder="只给你自己看"></label>
       <div class="form-foot"><button class="btn btn-primary" id="cm-save">保存</button><span class="small muted" id="cm-msg"></span></div>
     </div>
@@ -434,6 +444,13 @@ $aiOk = !empty($ai['ok']);
     <div class="form">
       <input type="hidden" id="clm-id">
       <label>班级名称<input id="clm-name" placeholder="例如：九年七班 / 物理提高班"></label>
+      <label style="display:flex;flex-direction:row;align-items:center;gap:8px">
+        <input type="checkbox" id="clm-default"> 设为默认班级（排课、学生进班都用这个）
+      </label>
+      <div>
+        <div class="small" style="font-weight:600;margin-bottom:6px">班级成员（勾上就是这个班的学生）</div>
+        <div id="clm-members" class="list" style="max-height:230px;overflow:auto"></div>
+      </div>
       <div id="clm-copy-wrap">
         <div class="small" style="font-weight:600;margin-bottom:6px">把别班的成员一起并进来（可不选）</div>
         <div id="clm-copy" class="list" style="max-height:200px;overflow:auto"></div>
@@ -475,7 +492,7 @@ window.COHORT_CONSOLE = {
 };
 </script>
 <script src="/assets/app.js?v=0.4.5"></script>
-<script src="/assets/console.js?v=0.5.5"></script>
+<script src="/assets/console.js?v=0.5.8"></script>
 <script src="/assets/voice.js?v=0.1.1"></script>
 </body>
 </html>
@@ -492,6 +509,9 @@ function console_ip_grid_html(array $net): string {
     }
     return $out;
 }
+
+
+
 
 
 

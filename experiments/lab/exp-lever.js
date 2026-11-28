@@ -17,7 +17,7 @@
 
   window.CohortLab.register({
     id: 'lever',
-    name: '杠杆平衡',
+    name: '杠杆实验室',
     group: '力学',
     grade: '八年级下',
     aim: '把钩码挂在杠杆两侧的不同位置，找出“力×力臂”相等时的平衡规律。',
@@ -262,3 +262,4 @@
     }
   });
 })();
+
